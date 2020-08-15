@@ -35,10 +35,10 @@ type Token struct {
 	value string
 }
 
-func analizar(entrada string) {
-	fmt.Println("Iniciando el análisis...")
+func analizar(entrada string) []Token {
+	fmt.Println("*** Iniciando el análisis ***")
 	state := initState
-	entrada = entrada + " $"
+	entrada = entrada + " \n$"
 	ctoken := ""
 	tokenList := make([]Token, 0, 10)
 	inputLen := len(entrada)
@@ -66,7 +66,7 @@ func analizar(entrada string) {
 				state = pathState
 				ctoken += string(currentChar)
 			} else if currentChar == '$' {
-				state = finalState
+				fmt.Println("Se encontraron ", len(tokenList), " tokens.")
 			} else if unicode.IsSpace(rune(currentChar)) {
 				/* Se ignoran */
 				state = initState
@@ -80,7 +80,7 @@ func analizar(entrada string) {
 				ctoken += string(currentChar)
 			} else {
 				tokentype := getIDType(ctoken)
-				tokenList = append(tokenList, Token{tokentype, ctoken})
+				tokenList = append(tokenList, Token{tokentype, strings.ToLower(ctoken)})
 				ctoken = ""
 				state = initState
 			}
@@ -142,20 +142,18 @@ func analizar(entrada string) {
 				ctoken = ""
 				state = initState
 			}
-		case finalState:
-			fmt.Println("Se encontraron ", len(tokenList), " tokens.")
-			return
 		default:
 			fmt.Println("Caracter ", string(currentChar), " genera error.")
-			return
+			return make([]Token, 0, 1)
 		}
 	}
-	fmt.Println("Se encontraron ", len(tokenList), " tokens.")
+	fmt.Println("*** Finaliza el análisis ***")
+	return tokenList
 }
 
 func getIDType(token string) string {
 	var tk = strings.ToLower(token)
-	var reservedWords = []string{"exec", "rmdisk", "fdisk", "mount", "unmount", "rep"}
+	var reservedWords = []string{"exec", "pause", "mkdisk", "rmdisk", "fdisk", "mount", "unmount", "rep"}
 	for _, word := range reservedWords {
 		if tk == word {
 			return "comando"
