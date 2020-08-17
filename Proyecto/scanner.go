@@ -19,16 +19,6 @@ const (
 	errorState      = -1
 )
 
-type parameter struct {
-	name  string
-	value string
-}
-
-type command struct {
-	name   string
-	params []parameter
-}
-
 //Token para el análisis de la entrada...
 type Token struct {
 	name  string
@@ -76,19 +66,21 @@ func analizar(entrada string) []Token {
 				state = errorState
 			}
 		case idState:
-			if unicode.IsLetter(rune(currentChar)) || unicode.IsDigit(rune(currentChar)) || currentChar == '_' {
+			if unicode.IsLetter(rune(currentChar)) || unicode.IsDigit(rune(currentChar)) || currentChar == '_' || currentChar == '.' {
 				ctoken += string(currentChar)
 			} else {
 				tokentype := getIDType(ctoken)
 				tokenList = append(tokenList, Token{tokentype, strings.ToLower(ctoken)})
 				ctoken = ""
 				state = initState
+				i = i - 1
 			}
 		case paramOrNumState:
 			if unicode.IsDigit(rune(currentChar)) {
 				state = numberState
 				ctoken += string(currentChar)
 			} else if unicode.IsLetter(rune(currentChar)) {
+				ctoken = ""
 				state = paramState
 				ctoken += string(currentChar)
 			} else if currentChar == '>' {
