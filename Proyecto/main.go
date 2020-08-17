@@ -62,7 +62,7 @@ func main() {
 	fmt.Printf("[Ingrese Comando]: ")
 	entrada.Scan()
 	comando = entrada.Text()
-	//comando = strings.ToLower(comando)
+	comando = strings.ToLower(comando)
 	/* if comando == "salir" {
 		break
 	} */
@@ -88,7 +88,7 @@ func execCommands(cmds []Token) {
 				cmd := CommandS{"mkdisk", make([]Parameter, 0, 4)}
 				x = x + 1
 				for cmds[x].name != "comando" {
-					fmt.Println(">>> ", cmds[x].value, cmds[x+1].value)
+					//fmt.Println(">>> ", cmds[x].value, cmds[x+1].value)
 					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
 					x = x + 2
 					if x >= cmdsLen {
@@ -97,6 +97,21 @@ func execCommands(cmds []Token) {
 				}
 				mkdisk(cmd)
 			case "rmdisk":
+				x = x + 1 // Alcanzo el parametro
+				if cmds[x].value == "path" {
+					x = x + 1 // Alcanzo el valor del parametro
+					path := delQuotationMark(cmds[x].value)
+					fmt.Println("\n===== SE ELIMINARÁ EL DISCO ====================================")
+					fmt.Println("Path: ", path)
+					e := os.Remove(path)
+					if e != nil {
+						log.Fatal("[!~RMDIKS] ", e)
+					}
+					fmt.Println("*** El disco ha sido eliminado exitosamente ***")
+					fmt.Println("================================================================")
+				} else {
+					fmt.Println("[!~RMDIKS] Error con el parametro del comando.")
+				}
 			case "fdisk":
 			case "mount":
 			case "unmount":
@@ -231,6 +246,7 @@ func makeDisk(size int64, path string, name string, unit byte) {
 	var binthree bytes.Buffer
 	binary.Write(&binthree, binary.BigEndian, dsk)
 	writeBytes(file, binthree.Bytes())
+	fmt.Println("*** Disco creado exitosamente ***")
 }
 
 func getCurrentTime() Time {
@@ -273,12 +289,11 @@ func readFile(path string) {
 	}
 
 	// Si todo sale bien se imprimirán los valores del MBR recuperado
-	fmt.Println("\nSe recupero el siguiente MBR:")
+	/* fmt.Println("\nSe recupero el siguiente MBR:")
 	fmt.Println("RecMBR size: ", recMbr.MbrSize)
 	fmt.Println("RecMBR signature: ", recMbr.MbrDiskSignature)
 	t := recMbr.MbrTime
-	fmt.Println("RecMBR fyh: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds)
-	fmt.Println(t)
+	fmt.Println("RecMBR fyh: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds) */
 }
 
 func writeBytes(file *os.File, bytes []byte) {
