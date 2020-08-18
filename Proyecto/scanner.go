@@ -26,7 +26,7 @@ type Token struct {
 }
 
 func analizar(entrada string) []Token {
-	fmt.Println("*** Iniciando el análisis ***")
+	fmt.Println("\n===== INICIA EL ANALISIS =======================================")
 	state := initState
 	entrada = entrada + " \n$"
 	ctoken := ""
@@ -56,13 +56,13 @@ func analizar(entrada string) []Token {
 				state = pathState
 				ctoken += string(currentChar)
 			} else if currentChar == '$' {
-				fmt.Println("Se encontraron ", len(tokenList), " tokens.")
+				fmt.Println("[*] Se encontraron ", len(tokenList), " TOKENS.")
 			} else if unicode.IsSpace(rune(currentChar)) {
 				/* Se ignoran */
 				state = initState
 				ctoken = ""
 			} else {
-				fmt.Println("Caracter que no hizo match: ", string(currentChar))
+				fmt.Println("[!~SCANNER] Caracter que no hizo match: ", string(currentChar))
 				state = errorState
 			}
 		case idState:
@@ -70,7 +70,7 @@ func analizar(entrada string) []Token {
 				ctoken += string(currentChar)
 			} else {
 				tokentype := getIDType(ctoken)
-				tokenList = append(tokenList, Token{tokentype, strings.ToLower(ctoken)})
+				tokenList = append(tokenList, Token{tokentype, ctoken})
 				ctoken = ""
 				state = initState
 				i = i - 1
@@ -135,21 +135,28 @@ func analizar(entrada string) []Token {
 				state = initState
 			}
 		default:
-			fmt.Println("Caracter ", string(currentChar), " genera error.")
+			fmt.Println("[!~SCANNER] Caracter ", string(currentChar), " genera error.")
+			fmt.Println("===== FINALIZA EL ANALISIS =====================================")
 			return make([]Token, 0, 1)
 		}
 	}
-	fmt.Println("*** Finaliza el análisis ***")
+	fmt.Println("===== FINALIZA EL ANALISIS =====================================")
 	return tokenList
 }
 
 func getIDType(token string) string {
-	var tk = strings.ToLower(token)
-	var reservedWords = []string{"exec", "pause", "mkdisk", "rmdisk", "fdisk", "mount", "unmount", "rep"}
-	for _, word := range reservedWords {
-		if tk == word {
-			return "comando"
-		}
+	tk := strings.ToLower(token)
+	switch tk {
+	case
+		"exec",
+		"pause",
+		"mkdisk",
+		"rmdisk",
+		"fdisk",
+		"mount",
+		"unmount",
+		"rep":
+		return "comando"
 	}
 	return "id"
 }

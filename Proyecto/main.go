@@ -62,11 +62,12 @@ func main() {
 	fmt.Printf("[Ingrese Comando]: ")
 	entrada.Scan()
 	comando = entrada.Text()
-	comando = strings.ToLower(comando)
+	//comando = strings.ToLower(comando)
 	/* if comando == "salir" {
 		break
 	} */
 	arrayCmd := analizar(comando)
+	fmt.Println(arrayCmd)
 	execCommands(arrayCmd)
 	//}
 }
@@ -74,9 +75,9 @@ func main() {
 func execCommands(cmds []Token) {
 	cmdsLen := len(cmds)
 	for x := 0; x < cmdsLen; x++ {
-		switch cmds[x].name {
+		switch strings.ToLower(cmds[x].name) {
 		case "comando":
-			switch cmds[x].value {
+			switch strings.ToLower(cmds[x].value) {
 			case "exec":
 				exec(cmds[x+2].value)
 				x += 2
@@ -87,7 +88,7 @@ func execCommands(cmds []Token) {
 			case "mkdisk":
 				cmd := CommandS{"mkdisk", make([]Parameter, 0, 4)}
 				x = x + 1
-				for cmds[x].name != "comando" {
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
 					//fmt.Println(">>> ", cmds[x].value, cmds[x+1].value)
 					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
 					x = x + 2
@@ -110,7 +111,7 @@ func execCommands(cmds []Token) {
 					fmt.Println("*** El disco ha sido eliminado exitosamente ***")
 					fmt.Println("================================================================")
 				} else {
-					fmt.Println("[!~RMDIKS] Error con el parametro del comando.")
+					fmt.Println("[!~RMDISK] Error con el parametro del comando.")
 				}
 			case "fdisk":
 			case "mount":
@@ -120,7 +121,7 @@ func execCommands(cmds []Token) {
 		case "parametro":
 		case "numero":
 		case "comentario":
-			fmt.Println(cmds[x].value)
+			fmt.Println("\n", cmds[x].value)
 		case "cadena":
 		case "path":
 		case "id":
@@ -146,8 +147,11 @@ func exec(path string) {
 		}
 		// Se reemplazan los caracteres de salto de linea '\*' definidos por el lenguaje
 		content = strings.Replace(content, "\\*\n", "", -1)
-		fmt.Println(content)
+		fmt.Println("\n", content)
 		// Se analiza la entrada
+		arrayCmd := analizar(content)
+		//fmt.Println(arrayCmd)
+		execCommands(arrayCmd)
 	}
 }
 
@@ -161,7 +165,7 @@ func mkdisk(comando CommandS) {
 	//fmt.Println("LEN: ", plen)
 	for i := 0; i < plen; i++ {
 		p := comando.Params[i]
-		//fmt.Println(">> ", p.name, " : ", p.value)
+		//fmt.Println(">> ", p.Name, " : ", p.Value)
 		switch strings.ToLower(p.Name) {
 		case "path":
 			path = delQuotationMark(p.Value)
