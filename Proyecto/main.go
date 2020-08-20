@@ -41,7 +41,7 @@ type Partition struct {
 	PartStatus byte
 	PartType   byte
 	PartFit    byte
-	PartStar   int64
+	PartStart  int64
 	PartSize   int64
 	PartName   [16]byte
 }
@@ -51,7 +51,14 @@ type MBR struct {
 	MbrSize          int64
 	MbrTime          Time
 	MbrDiskSignature int64
-	Martitions       [4]Partition
+	MbrPartitions    [4]Partition
+}
+
+// InfoPartitions información sobre particiones
+type InfoPartitions struct {
+	free      bool
+	primaries int
+	extended  bool
 }
 
 func main() {
@@ -67,7 +74,7 @@ func main() {
 		break
 	} */
 	arrayCmd := analizar(comando)
-	fmt.Println(arrayCmd)
+	//fmt.Println(arrayCmd)
 	execCommands(arrayCmd)
 	//}
 }
@@ -86,8 +93,8 @@ func execCommands(cmds []Token) {
 				input := bufio.NewScanner(os.Stdin)
 				input.Scan()
 			case "mkdisk":
-				cmd := CommandS{"mkdisk", make([]Parameter, 0, 4)}
 				x = x + 1
+				cmd := CommandS{"mkdisk", make([]Parameter, 0, 4)}
 				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
 					//fmt.Println(">>> ", cmds[x].value, cmds[x+1].value)
 					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
@@ -114,6 +121,18 @@ func execCommands(cmds []Token) {
 					fmt.Println("[!~RMDISK] Error con el parametro del comando.")
 				}
 			case "fdisk":
+				// Las particiones se crean con el <primer ajuste>
+				x = x + 1 // Alcanzo el primer parametro
+				cmd := CommandS{"fdisk", make([]Parameter, 0, 8)}
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+					//fmt.Println(">>> ", cmds[x].value, cmds[x+1].value)
+					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+					x = x + 2
+					if x >= cmdsLen {
+						break
+					}
+				}
+				fdisk(cmd)
 			case "mount":
 			case "unmount":
 			case "rep":
@@ -129,6 +148,7 @@ func execCommands(cmds []Token) {
 	}
 }
 
+/*----- Comando Exec -----------------------------------------------------*/
 func exec(path string) {
 	var content string = ""
 	// Eliminación de las comillas en el path
@@ -150,16 +170,16 @@ func exec(path string) {
 		fmt.Println("\n", content)
 		// Se analiza la entrada
 		arrayCmd := analizar(content)
-		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
 	}
 }
 
+/*----- Comando Mkdisk ---------------------------------------------------*/
 func mkdisk(comando CommandS) {
-	var size int64 = 0   // Obligatorio
-	var path string = "" // Obligatorio
-	var name string = "" // Obligatorio
-	var unit byte = 'm'  // Opcional
+	var size int64 = 0   // (*) Obligatorio
+	var path string = "" // (*) Obligatorio
+	var name string = "" // (*) Obligatorio
+	var unit byte = 'm'  // (!) Opcional
 
 	plen := len(comando.Params)
 	//fmt.Println("LEN: ", plen)
@@ -198,13 +218,124 @@ func mkdisk(comando CommandS) {
 		fmt.Println("Name: ", name)
 		fmt.Println("Unit: ", string(unit))
 		makeDisk(size, path, name, unit)
-		readFile(path + name)
 		fmt.Println("================================================================")
 	} else {
 		fmt.Println("[!~MKDISK] Faltan parametros obligatorios.")
 	}
 }
 
+/*----- Comando Fdisk ----------------------------------------------------*/
+func fdisk(comando CommandS) {
+	fmt.Println(comando)
+	var size int64        //(*) Obligatorio
+	var path string       //(*) Obligatorio
+	var name string       //(*) Obligatorio
+	var add int64         //(!) Opcional
+	var delete byte = 'x' //(!) Opcional
+	var fit byte = 'w'    //(!) Opcional
+	var typep byte = 'p'  //(!) Opcional
+	var unit byte = 'k'   //(!) Opcional
+
+	for _, prm := range comando.Params {
+		switch strings.ToLower(prm.Name) {
+		case "size":
+			if n, err := strconv.Atoi(prm.Value); err == nil {
+				size = int64(n)
+			} else {
+				fmt.Println("[!] El valor del parametro 'size' no es un numero.")
+			}
+		case "path":
+			path = delQuotationMark(prm.Value)
+		case "name":
+			name = delQuotationMark(prm.Value)
+		case "add":
+			if n, err := strconv.Atoi(prm.Value); err == nil {
+				add = int64(n)
+			} else {
+				fmt.Println("[!] El valor del parametro 'add' no es un numero.")
+			}
+		case "delete":
+			if strings.ToLower(prm.Value) == "fast" {
+				delete = 'a'
+			} else if strings.ToLower(prm.Value) == "full" {
+				delete = 'u'
+			} else {
+				fmt.Println("[!] El valor del parametro 'delete' es invalido.")
+			}
+		case "fit":
+			if strings.ToLower(prm.Value) == "bf" {
+				fit = 'b'
+			} else if strings.ToLower(prm.Value) == "ff" {
+				fit = 'f'
+			} else if strings.ToLower(prm.Value) == "wf" {
+				fit = 'w'
+			} else {
+				fmt.Println("[!] El valor del parametro 'fit' es invalido.")
+			}
+		case "type":
+			if strings.ToLower(prm.Value) == "p" {
+				fit = 'p'
+			} else if strings.ToLower(prm.Value) == "e" {
+				fit = 'e'
+			} else if strings.ToLower(prm.Value) == "l" {
+				fit = 'l'
+			} else {
+				fmt.Println("[!] El valor del parametro 'type' es invalido.")
+			}
+		case "unit":
+			if strings.ToLower(prm.Value) == "b" {
+				unit = 'b'
+			} else if strings.ToLower(prm.Value) == "k" {
+				unit = 'k'
+			} else if strings.ToLower(prm.Value) == "m" {
+				unit = 'm'
+			} else {
+				fmt.Println("[!] El valor del parametro 'unit' es invalido.")
+			}
+		default:
+			fmt.Println("[!] Error con los parametros de 'fdisk'.")
+			return
+		}
+	}
+	// Verificación de los parametros obligatorios
+	if size > 0 && path != "" && name != "" {
+		fmt.Println("\n===== FORMATEO DE DISCO ========================================")
+		if add > 0 { // Se va a agregar espacio
+
+		} else if delete == 'a' { // Se realizará un formateo 'fast'
+
+		} else if delete == 'u' { // Se realizará un formateo 'full'
+
+		} else { // Se creará una partición
+			var bname [16]byte
+			copy(bname[:], name)
+			recmbr := readMBR(path)
+			sizePart := getSize(size, unit)
+			newpartition := Partition{PartStatus: 1, PartType: typep, PartFit: fit, PartStart: 0, PartSize: sizePart, PartName: bname}
+			if (MBR{}) != recmbr {
+				recmbr = createPartition(recmbr, newpartition)
+				for i, p := range recmbr.MbrPartitions {
+					if p.PartStatus == 1 {
+						fmt.Println("Particion [", i, "]")
+						fmt.Println("   Status: 1")
+						fmt.Println("   Type: ", string(p.PartType))
+						fmt.Println("   Fit: ", string(p.PartFit))
+						fmt.Println("   Start: ", p.PartStart)
+						fmt.Println("   Size: ", p.PartSize)
+						fmt.Println("   Name: ", string(p.PartName[:]))
+					}
+				}
+			} else {
+				fmt.Println("Ha ocurrido un error al recuperar el MBR del disco.")
+			}
+		}
+		fmt.Println("================================================================")
+	} else {
+		fmt.Println("[!~FDISK] Faltan parametros obligatorios.")
+	}
+}
+
+/*----- Función que crea el disco ----------------------------------------*/
 func makeDisk(size int64, path string, name string, unit byte) {
 	// Creacion del MBR
 	var mbrDisk MBR
@@ -253,15 +384,18 @@ func makeDisk(size int64, path string, name string, unit byte) {
 	fmt.Println("*** Disco creado exitosamente ***")
 }
 
+/*----- Función que obtiene la hora y la fecha actual --------------------*/
 func getCurrentTime() Time {
 	ctime := time.Now()
 	return Time{Day: int64(ctime.Day()), Month: int64(ctime.Month()), Year: int64(ctime.Year()), Hour: int64(ctime.Hour()), Minute: int64(ctime.Minute()), Seconds: int64(ctime.Second())}
 }
 
+/*----- Función que genera 'firma' del disco -----------------------------*/
 func getSignature(t Time) int64 {
 	return t.Year - t.Day - t.Month - t.Hour - t.Minute - t.Seconds
 }
 
+/*----- Función que obtiene el tamaño en bytes del disco -----------------*/
 func getSize(size int64, unit byte) int64 {
 	if unit == 'k' {
 		return size * 1024
@@ -272,7 +406,7 @@ func getSize(size int64, unit byte) int64 {
 	}
 }
 
-func readFile(path string) {
+func readMBR(path string) MBR {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
@@ -293,11 +427,30 @@ func readFile(path string) {
 	}
 
 	// Si todo sale bien se imprimirán los valores del MBR recuperado
-	/* fmt.Println("\nSe recupero el siguiente MBR:")
-	fmt.Println("RecMBR size: ", recMbr.MbrSize)
-	fmt.Println("RecMBR signature: ", recMbr.MbrDiskSignature)
 	t := recMbr.MbrTime
-	fmt.Println("RecMBR fyh: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds) */
+	fmt.Println("\n---MBR--------------------------------")
+	fmt.Println("   Tamaño: ", recMbr.MbrSize)
+	fmt.Println("   Firma: ", recMbr.MbrDiskSignature)
+	fmt.Println("   F/H: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds)
+	fmt.Println("--------------------------------------")
+	return recMbr
+}
+
+func writeMBR(path string, mbr MBR) {
+	file, err := os.Open(path)
+	defer file.Close()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	//Posición al inicio del archivo
+	file.Seek(0, 0)
+	dsk := &mbr
+	//Escritura del struct MBR
+	var binthree bytes.Buffer
+	binary.Write(&binthree, binary.BigEndian, dsk)
+	writeBytes(file, binthree.Bytes())
+	fmt.Println("*** MBR escrito exitosamente ***")
 }
 
 func writeBytes(file *os.File, bytes []byte) {
@@ -326,4 +479,101 @@ func delQuotationMark(s string) string {
 	user, _ := user.Current()
 	s = strings.Replace(s, "/home/", user.HomeDir+"/", 1)
 	return s
+}
+
+func getPartitionsInfo(partitions [4]Partition) InfoPartitions {
+	infoParts := InfoPartitions{}
+	for _, p := range partitions {
+		if p.PartType == 'e' {
+			infoParts.extended = true
+		} else if p.PartType == 'p' {
+			infoParts.primaries++
+		} else {
+			infoParts.free = true
+		}
+	}
+	return infoParts
+}
+
+func createPartition(mbr MBR, p Partition) MBR {
+	// Las particiones siempre se crean con el primer ajuste
+	sizeOfMbr := int64(unsafe.Sizeof(mbr))
+	//spaceFree := false  // Bandera para verficar si la partición encaja en el espacio
+	offset := sizeOfMbr // Desplazamiento de la pos de la particion
+	//nonSpace := false   // Bandera para verificar sino hay espacio
+	/* logicp := false
+	positionl := 0 */
+	switch p.PartType {
+	case 'p':
+		for i, cp := range mbr.MbrPartitions {
+			if cp.PartStatus == 0 {
+				flgPartition := false
+				var nextPartPos int64 = 0
+				for x := i + 1; x < 4; x++ {
+					if mbr.MbrPartitions[x].PartStatus != 0 {
+						flgPartition = true
+						nextPartPos = mbr.MbrPartitions[x].PartStart
+						break
+					}
+				}
+				// Verficar las siguientes...
+				if flgPartition {
+					gap := nextPartPos - offset // inicio de la particion siguiente - desplazamiento
+					// El tamaño de la partición a crear es menor o igual al espacio libre ¿?
+					if p.PartSize <= gap {
+						if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+							p.PartStart = offset + 1
+							mbr.MbrPartitions[i] = p
+							fmt.Println("*** Particion creada exitosamente ***")
+							//nonSpace = true
+							break
+						} else {
+							fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+						}
+					} else {
+						if i == 3 {
+							fmt.Println("[!] No hay espacio disponible para crear la particion.")
+							//nonSpace = true
+							break
+						}
+					}
+				} else {
+					gap := mbr.MbrSize - offset
+					//fmt.Println("smbr - offeset = ", gap)
+					if p.PartSize <= gap {
+						if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+							p.PartStart = offset
+							mbr.MbrPartitions[i] = p
+							fmt.Println("*** Particion creada exitosamente ***")
+							//nonSpace = true
+							break
+						} else {
+							fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+						}
+					} else {
+						fmt.Println("[!] No hay espacio disponible para crear la particion.")
+						//nonSpace = true
+					}
+				}
+			} else {
+				offset = mbr.MbrPartitions[i].PartStart + mbr.MbrPartitions[i].PartSize
+				/* 				if i == 3 {
+					spaceFree = true
+					nonSpace = true
+				} */
+			}
+		}
+	case 'e':
+	case 'l':
+	}
+	return mbr
+}
+
+func nameAlreadyExist(partitions [4]Partition, name [16]byte) bool {
+	for _, p := range partitions {
+		if p.PartName == name {
+			return true
+		}
+	}
+	return false
 }
