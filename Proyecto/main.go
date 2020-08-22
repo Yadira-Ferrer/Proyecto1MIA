@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 //Parameter para el manejo de los parametros de los comandos
@@ -54,6 +53,16 @@ type MBR struct {
 	MbrPartitions    [4]Partition
 }
 
+//EBR estructura para el Extended Boot Record
+type EBR struct {
+	PartStatus byte
+	PartFit    byte
+	PartStart  int64
+	PartSize   int64
+	PartNext   int64
+	PartName   [16]byte
+}
+
 // InfoPartitions información sobre particiones
 type InfoPartitions struct {
 	free      bool
@@ -65,18 +74,18 @@ func main() {
 	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
-	//for {
-	fmt.Printf("[Ingrese Comando]: ")
-	entrada.Scan()
-	comando = entrada.Text()
-	//comando = strings.ToLower(comando)
-	/* if comando == "salir" {
-		break
-	} */
-	arrayCmd := analizar(comando)
-	//fmt.Println(arrayCmd)
-	execCommands(arrayCmd)
-	//}
+	for {
+		fmt.Printf("[Ingrese Comando]: ")
+		entrada.Scan()
+		comando = entrada.Text()
+		//comando = strings.ToLower(comando)
+		if comando == "salir" {
+			break
+		}
+		arrayCmd := analizar(comando)
+		//fmt.Println(arrayCmd)
+		execCommands(arrayCmd)
+	}
 }
 
 func execCommands(cmds []Token) {
@@ -274,11 +283,11 @@ func fdisk(comando CommandS) {
 			}
 		case "type":
 			if strings.ToLower(prm.Value) == "p" {
-				fit = 'p'
+				typep = 'p'
 			} else if strings.ToLower(prm.Value) == "e" {
-				fit = 'e'
+				typep = 'e'
 			} else if strings.ToLower(prm.Value) == "l" {
-				fit = 'l'
+				typep = 'l'
 			} else {
 				fmt.Println("[!] El valor del parametro 'type' es invalido.")
 			}
@@ -308,28 +317,22 @@ func fdisk(comando CommandS) {
 
 		} else { // Se creará una partición
 			var bname [16]byte
+			var partCreated bool
 			copy(bname[:], name)
 			recmbr := readMBR(path)
 			sizePart := getSize(size, unit)
 			newpartition := Partition{PartStatus: 1, PartType: typep, PartFit: fit, PartStart: 0, PartSize: sizePart, PartName: bname}
 			if (MBR{}) != recmbr {
-				recmbr = createPartition(recmbr, newpartition)
-				for i, p := range recmbr.MbrPartitions {
-					if p.PartStatus == 1 {
-						fmt.Println("Particion [", i, "]")
-						fmt.Println("   Status: 1")
-						fmt.Println("   Type: ", string(p.PartType))
-						fmt.Println("   Fit: ", string(p.PartFit))
-						fmt.Println("   Start: ", p.PartStart)
-						fmt.Println("   Size: ", p.PartSize)
-						fmt.Println("   Name: ", string(p.PartName[:]))
-					}
+				partCreated, recmbr = createPartition(recmbr, newpartition, path)
+				if partCreated {
+					writeMBR(path, recmbr)
 				}
 			} else {
 				fmt.Println("Ha ocurrido un error al recuperar el MBR del disco.")
 			}
 		}
-		fmt.Println("================================================================")
+		//readMBR(path)
+		fmt.Println("\n================================================================")
 	} else {
 		fmt.Println("[!~FDISK] Faltan parametros obligatorios.")
 	}
@@ -360,7 +363,6 @@ func makeDisk(size int64, path string, name string, unit byte) {
 	}
 	var ebit int8 = 0
 	s := &ebit
-	//fmt.Println(unsafe.Sizeof(ebit))
 	var bin bytes.Buffer
 	binary.Write(&bin, binary.BigEndian, s)
 	writeBytes(file, bin.Bytes())
@@ -372,7 +374,7 @@ func makeDisk(size int64, path string, name string, unit byte) {
 	writeBytes(file, bintwo.Bytes())
 	//------------------------------------------------------------------------
 	//-------- Acá inicia la escritrua del struct del MBR en el disco --------
-	//------------------------ MBR sizeOf = 224 bytes ------------------------
+	//------------------------ MBR sizeOf = 204 bytes ------------------------
 
 	//Posición al inicio del archivo
 	file.Seek(0, 0)
@@ -415,7 +417,7 @@ func readMBR(path string) MBR {
 	// Se declara MBR contenedor
 	recMbr := MBR{}
 	// Se obtiene el tamaño del MBR
-	var mbrSize int = int(unsafe.Sizeof(recMbr))
+	var mbrSize int64 = int64(binary.Size(recMbr))
 	// Lectura los bytes determinados por mbrSize
 	data := readBytes(file, mbrSize)
 	// Convierte data en un buffer, necesario para decodificar binario
@@ -432,36 +434,112 @@ func readMBR(path string) MBR {
 	fmt.Println("   Tamaño: ", recMbr.MbrSize)
 	fmt.Println("   Firma: ", recMbr.MbrDiskSignature)
 	fmt.Println("   F/H: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds)
+	fmt.Println("   Particiones:")
+	for i, p := range recMbr.MbrPartitions {
+		if p.PartStatus == 1 {
+			fmt.Println("   P[", i, "]")
+			fmt.Println("   - Status: 1")
+			fmt.Println("   - Type: ", string(p.PartType))
+			fmt.Println("   - Fit: ", string(p.PartFit))
+			fmt.Println("   - Start: ", p.PartStart)
+			fmt.Println("   - Size: ", p.PartSize)
+			fmt.Println("   - Name: ", string(p.PartName[:]))
+		}
+	}
 	fmt.Println("--------------------------------------")
 	return recMbr
 }
 
-func writeMBR(path string, mbr MBR) {
+func readEBR(path string, position int64) EBR {
 	file, err := os.Open(path)
-	defer file.Close()
 	if err != nil {
 		log.Println(err)
+	}
+	defer file.Close()
+	// Posicion del puntero
+	file.Seek(position, 1)
+	// Se declara EBR contenedor
+	recEbr := EBR{}
+	// Se obtiene el tamaño del EBR
+	var ebrSize int64 = int64(binary.Size(recEbr))
+	// Lectura los bytes determinados por ebrSize
+	data := readBytes(file, ebrSize)
+	// Convierte data en un buffer, necesario para decodificar binario
+	buffer := bytes.NewBuffer(data)
+	// Se decodifica y guarda en recMbr
+	err = binary.Read(buffer, binary.BigEndian, &recEbr)
+	if err != nil {
+		log.Fatal("Fallo binary.Read ", err)
+	}
+
+	// Si todo sale bien se imprimirán los valores del MBR recuperado
+	fmt.Println("\n---EBR--------------------------------")
+	fmt.Println("   Estatus: ", string(recEbr.PartStatus))
+	fmt.Println("   Ajuste: ", string(recEbr.PartFit))
+	fmt.Println("   Inicio: ", recEbr.PartStart)
+	fmt.Println("   Tamaño: ", recEbr.PartSize)
+	fmt.Println("   Siguiente: ", recEbr.PartNext)
+	fmt.Println("   Nombre: ", string(recEbr.PartName[:]))
+	fmt.Println("--------------------------------------")
+	return recEbr
+}
+
+func writeMBR(path string, mbr MBR) {
+	file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
+	if err != nil {
+		log.Println("[!] Error al abrir disco. ", err)
 		return
 	}
+	defer file.Close()
 	//Posición al inicio del archivo
 	file.Seek(0, 0)
 	dsk := &mbr
 	//Escritura del struct MBR
 	var binthree bytes.Buffer
 	binary.Write(&binthree, binary.BigEndian, dsk)
-	writeBytes(file, binthree.Bytes())
-	fmt.Println("*** MBR escrito exitosamente ***")
+	state := writeBytes(file, binthree.Bytes())
+	if state {
+		fmt.Println("*** MBR escrito exitosamente ***")
+	} else {
+		fmt.Println("[!] Ha ocurrido un error al escribir el MBR en el disco.")
+	}
+
 }
 
-func writeBytes(file *os.File, bytes []byte) {
+func writeEBR(path string, ebr EBR, position int64) {
+	file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
+	if err != nil {
+		log.Println("[!] Error al abrir disco. ", err)
+		return
+	}
+	defer file.Close()
+	// .Seek(position,mode) mode:
+	// 0 = Inicio, 1 = Desde donde esta el puntero, 2 = Del final al inicio
+	// Posición al inicio del archivo
+	file.Seek(position, 1)
+	refebr := &ebr
+	//Escritura del struct EBR
+	var binthree bytes.Buffer
+	binary.Write(&binthree, binary.BigEndian, refebr)
+	state := writeBytes(file, binthree.Bytes())
+	if state {
+		fmt.Println("*** EBR escrito exitosamente ***")
+	} else {
+		fmt.Println("[!] Ha ocurrido un error al escribir EBR en el disco.")
+	}
+}
+
+func writeBytes(file *os.File, bytes []byte) bool {
 	_, err := file.Write(bytes)
 
 	if err != nil {
 		log.Println(err)
+		return false
 	}
+	return true
 }
 
-func readBytes(file *os.File, number int) []byte {
+func readBytes(file *os.File, number int64) []byte {
 	bytes := make([]byte, number) //array de bytes
 
 	_, err := file.Read(bytes) // Leido -> bytes
@@ -484,20 +562,22 @@ func delQuotationMark(s string) string {
 func getPartitionsInfo(partitions [4]Partition) InfoPartitions {
 	infoParts := InfoPartitions{}
 	for _, p := range partitions {
-		if p.PartType == 'e' {
+		if p.PartType == 'e' && p.PartStatus == 1 {
 			infoParts.extended = true
-		} else if p.PartType == 'p' {
+		} else if p.PartType == 'p' && p.PartStatus == 1 {
 			infoParts.primaries++
-		} else {
+		} else if p.PartStatus == 0 {
 			infoParts.free = true
 		}
 	}
 	return infoParts
 }
 
-func createPartition(mbr MBR, p Partition) MBR {
+func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 	// Las particiones siempre se crean con el primer ajuste
-	sizeOfMbr := int64(unsafe.Sizeof(mbr))
+	infparts := getPartitionsInfo(mbr.MbrPartitions)
+	flgCreated := false // Toma valor verdadero si la particion se ha creado
+	sizeOfMbr := int64(binary.Size(mbr))
 	//spaceFree := false  // Bandera para verficar si la partición encaja en el espacio
 	offset := sizeOfMbr // Desplazamiento de la pos de la particion
 	//nonSpace := false   // Bandera para verificar sino hay espacio
@@ -505,68 +585,187 @@ func createPartition(mbr MBR, p Partition) MBR {
 	positionl := 0 */
 	switch p.PartType {
 	case 'p':
-		for i, cp := range mbr.MbrPartitions {
-			if cp.PartStatus == 0 {
-				flgPartition := false
-				var nextPartPos int64 = 0
-				for x := i + 1; x < 4; x++ {
-					if mbr.MbrPartitions[x].PartStatus != 0 {
-						flgPartition = true
-						nextPartPos = mbr.MbrPartitions[x].PartStart
-						break
-					}
-				}
-				// Verficar las siguientes...
-				if flgPartition {
-					gap := nextPartPos - offset // inicio de la particion siguiente - desplazamiento
-					// El tamaño de la partición a crear es menor o igual al espacio libre ¿?
-					if p.PartSize <= gap {
-						if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
-							p.PartStart = offset + 1
-							mbr.MbrPartitions[i] = p
-							fmt.Println("*** Particion creada exitosamente ***")
-							//nonSpace = true
+		if infparts.primaries < 3 && infparts.free {
+			for i, cp := range mbr.MbrPartitions {
+				if cp.PartStatus == 0 {
+					flgPartition := false
+					var nextPartPos int64 = 0
+					for x := i + 1; x < 4; x++ {
+						if mbr.MbrPartitions[x].PartStatus != 0 {
+							flgPartition = true
+							nextPartPos = mbr.MbrPartitions[x].PartStart
 							break
+						}
+					}
+					// Verficar las siguientes...
+					if flgPartition {
+						gap := nextPartPos - offset // inicio de la particion siguiente - desplazamiento
+						// El tamaño de la partición a crear es menor o igual al espacio libre ¿?
+						if p.PartSize <= gap {
+							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+								p.PartStart = offset + 1
+								mbr.MbrPartitions[i] = p
+								flgCreated = true
+								fmt.Println("*** Particion creada exitosamente ***")
+								//nonSpace = true
+								break
+							} else {
+								fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+								break
+							}
 						} else {
-							fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+							if i == 3 {
+								fmt.Println("[!] No hay espacio disponible para crear la particion.")
+								//nonSpace = true
+								break
+							}
 						}
 					} else {
-						if i == 3 {
+						gap := mbr.MbrSize - offset
+						//fmt.Println("smbr - offeset = ", gap)
+						if p.PartSize <= gap {
+							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+								p.PartStart = offset
+								mbr.MbrPartitions[i] = p
+								flgCreated = true
+								fmt.Println("*** Particion creada exitosamente ***")
+								//nonSpace = true
+								break
+							} else {
+								fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+								break
+							}
+						} else {
 							fmt.Println("[!] No hay espacio disponible para crear la particion.")
 							//nonSpace = true
 							break
 						}
 					}
 				} else {
-					gap := mbr.MbrSize - offset
-					//fmt.Println("smbr - offeset = ", gap)
-					if p.PartSize <= gap {
-						if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
-							p.PartStart = offset
-							mbr.MbrPartitions[i] = p
-							fmt.Println("*** Particion creada exitosamente ***")
-							//nonSpace = true
-							break
-						} else {
-							fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
-						}
-					} else {
-						fmt.Println("[!] No hay espacio disponible para crear la particion.")
-						//nonSpace = true
-					}
+					offset = cp.PartStart + cp.PartSize
 				}
-			} else {
-				offset = mbr.MbrPartitions[i].PartStart + mbr.MbrPartitions[i].PartSize
-				/* 				if i == 3 {
-					spaceFree = true
-					nonSpace = true
-				} */
 			}
+		} else {
+			fmt.Println("[!] Ya existen 3 particiones primarias...")
 		}
 	case 'e':
+		if !infparts.extended {
+			for i, cp := range mbr.MbrPartitions {
+				if cp.PartStatus == 0 {
+					flgPartition := false
+					var nextPartPos int64 = 0
+					for x := i + 1; x < 4; x++ {
+						if mbr.MbrPartitions[x].PartStatus != 0 {
+							flgPartition = true
+							nextPartPos = mbr.MbrPartitions[x].PartStart
+							break
+						}
+					}
+					// Verficar las siguientes...
+					if flgPartition {
+						gap := nextPartPos - offset // inicio de la particion siguiente - desplazamiento
+						if p.PartSize <= gap {
+							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+								p.PartStart = offset + 1
+								mbr.MbrPartitions[i] = p
+								// Se crea un EBR
+								ebr := EBR{PartStatus: 1, PartFit: p.PartFit, PartStart: (offset + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
+								// Se escribe el EBR en el disco
+								writeEBR(path, ebr, p.PartStart)
+								flgCreated = true
+								fmt.Println("*** Particion creada exitosamente ***")
+								break
+							} else {
+								fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+								break
+							}
+						} else {
+							fmt.Println("[!] No hay espacio disponible para crear la particion.")
+							break
+						}
+					} else { // No hay siguiente...
+						gap := mbr.MbrSize - offset
+						if p.PartSize <= gap {
+							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+								p.PartStart = offset + 1
+								mbr.MbrPartitions[i] = p
+								// Se crea un EBR
+								ebr := EBR{PartStatus: 1, PartFit: p.PartFit, PartStart: (offset + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
+								// Se escribe el EBR en el disco
+								writeEBR(path, ebr, p.PartStart)
+								flgCreated = true
+								fmt.Println("*** Particion creada exitosamente ***")
+								break
+							} else {
+								fmt.Println("[!] Ya existe una particion con el nombre: ", string(p.PartName[:]))
+								break
+							}
+						} else {
+							fmt.Println("[!] No hay espacio disponible para crear la particion.")
+							break
+						}
+					}
+				} else {
+					offset = cp.PartStart + cp.PartSize
+				}
+			} // Fin del For
+		} else {
+			fmt.Println("[!] Ya existe una partición extendida.")
+		}
 	case 'l':
+		// Existe una extendida
+		if infparts.extended {
+			var indexExt int64
+			if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+				for i, cp := range mbr.MbrPartitions {
+					if cp.PartStatus == 1 && cp.PartType == 'e' {
+						indexExt = int64(i)
+						break
+					}
+				}
+				// extp : extended partition
+				extp := mbr.MbrPartitions[indexExt]
+				// Leo el primer EBR
+				firstEbr := readEBR(path, extp.PartStart)
+				sizOfEbr := int64(binary.Size(extp))
+				// Desplazamiento = inicio del primer EBR + tamaño del EBR
+				offset := firstEbr.PartStart + sizOfEbr
+				// Comprobación del espacio...
+				auxEbr := firstEbr
+				endPart := extp.PartStart + extp.PartSize
+				// Buscando espacio en el disco
+				for offset < endPart {
+					// Sino hay una partición siguiente
+					if auxEbr.PartNext == 0 {
+						gap := endPart - offset
+						if p.PartSize <= gap {
+							auxEbr.PartFit = p.PartFit
+							auxEbr.PartSize = p.PartSize
+							auxEbr.PartNext = offset + p.PartSize + 1
+							auxEbr.PartName = p.PartName
+							// Escribir el EBR
+							writeEBR(path, auxEbr, auxEbr.PartStart)
+							// Crear un nuevo EBR
+							nuevoEBR := EBR{PartStatus: 1, PartFit: p.PartFit, PartStart: (offset + p.PartSize + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
+							writeEBR(path, nuevoEBR, nuevoEBR.PartStart)
+							fmt.Println("*** Particion L creada exitosamente ***")
+							break
+						} else {
+							fmt.Println("[!] No se puede crear la particion, no hay espacio.")
+							break
+						}
+					} else {
+						posNext := auxEbr.PartNext
+						offset = sizOfEbr + posNext
+						auxEbr = readEBR(path, posNext)
+					}
+				} // Fin de For
+			}
+		} else {
+			fmt.Println("[!] No es posible crear la particion logica, no existe una extendida.")
+		}
 	}
-	return mbr
+	return flgCreated, mbr
 }
 
 func nameAlreadyExist(partitions [4]Partition, name [16]byte) bool {
@@ -576,4 +775,8 @@ func nameAlreadyExist(partitions [4]Partition, name [16]byte) bool {
 		}
 	}
 	return false
+}
+
+func printEBR(ext Partition) {
+
 }
