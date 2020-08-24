@@ -149,7 +149,7 @@ func execCommands(cmds []Token) {
 		case "parametro":
 		case "numero":
 		case "comentario":
-			fmt.Println("\n", cmds[x].value)
+			fmt.Println(cmds[x].value)
 		case "cadena":
 		case "path":
 		case "id":
@@ -457,7 +457,8 @@ func readEBR(path string, position int64) EBR {
 	}
 	defer file.Close()
 	// Posicion del puntero
-	file.Seek(position, 1)
+	currentPosition, err := file.Seek(position, 1)
+	fmt.Println("Posicion 'Seek' ReadEbr: ", currentPosition)
 	// Se declara EBR contenedor
 	recEbr := EBR{}
 	// Se obtiene el tamaño del EBR
@@ -473,14 +474,14 @@ func readEBR(path string, position int64) EBR {
 	}
 
 	// Si todo sale bien se imprimirán los valores del MBR recuperado
-	fmt.Println("\n---EBR--------------------------------")
+	/* fmt.Println("\n---EBR--------------------------------")
 	fmt.Println("   Estatus: ", string(recEbr.PartStatus))
 	fmt.Println("   Ajuste: ", string(recEbr.PartFit))
 	fmt.Println("   Inicio: ", recEbr.PartStart)
 	fmt.Println("   Tamaño: ", recEbr.PartSize)
 	fmt.Println("   Siguiente: ", recEbr.PartNext)
 	fmt.Println("   Nombre: ", string(recEbr.PartName[:]))
-	fmt.Println("--------------------------------------")
+	fmt.Println("--------------------------------------") */
 	return recEbr
 }
 
@@ -516,7 +517,8 @@ func writeEBR(path string, ebr EBR, position int64) {
 	// .Seek(position,mode) mode:
 	// 0 = Inicio, 1 = Desde donde esta el puntero, 2 = Del final al inicio
 	// Posición al inicio del archivo
-	file.Seek(position, 1)
+	currentPosition, err := file.Seek(position, 1)
+	fmt.Println("Posicion 'Seek' WriteEbr: ", currentPosition)
 	refebr := &ebr
 	//Escritura del struct EBR
 	var binthree bytes.Buffer
@@ -578,13 +580,10 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 	infparts := getPartitionsInfo(mbr.MbrPartitions)
 	flgCreated := false // Toma valor verdadero si la particion se ha creado
 	sizeOfMbr := int64(binary.Size(mbr))
-	//spaceFree := false  // Bandera para verficar si la partición encaja en el espacio
 	offset := sizeOfMbr // Desplazamiento de la pos de la particion
-	//nonSpace := false   // Bandera para verificar sino hay espacio
-	/* logicp := false
-	positionl := 0 */
 	switch p.PartType {
 	case 'p':
+		fmt.Println("[*] Se creara un particion Primaria...")
 		if infparts.primaries < 3 && infparts.free {
 			for i, cp := range mbr.MbrPartitions {
 				if cp.PartStatus == 0 {
@@ -602,11 +601,11 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 						gap := nextPartPos - offset // inicio de la particion siguiente - desplazamiento
 						// El tamaño de la partición a crear es menor o igual al espacio libre ¿?
 						if p.PartSize <= gap {
-							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+							if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
 								p.PartStart = offset + 1
 								mbr.MbrPartitions[i] = p
 								flgCreated = true
-								fmt.Println("*** Particion creada exitosamente ***")
+								fmt.Println("*** Particion 'p' creada exitosamente ***")
 								//nonSpace = true
 								break
 							} else {
@@ -624,11 +623,11 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 						gap := mbr.MbrSize - offset
 						//fmt.Println("smbr - offeset = ", gap)
 						if p.PartSize <= gap {
-							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+							if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
 								p.PartStart = offset
 								mbr.MbrPartitions[i] = p
 								flgCreated = true
-								fmt.Println("*** Particion creada exitosamente ***")
+								fmt.Println("*** Particion 'p' creada exitosamente ***")
 								//nonSpace = true
 								break
 							} else {
@@ -649,6 +648,7 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 			fmt.Println("[!] Ya existen 3 particiones primarias...")
 		}
 	case 'e':
+		fmt.Println("[*] Se creara un particion Extendida...")
 		if !infparts.extended {
 			for i, cp := range mbr.MbrPartitions {
 				if cp.PartStatus == 0 {
@@ -665,7 +665,7 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 					if flgPartition {
 						gap := nextPartPos - offset // inicio de la particion siguiente - desplazamiento
 						if p.PartSize <= gap {
-							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+							if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
 								p.PartStart = offset + 1
 								mbr.MbrPartitions[i] = p
 								// Se crea un EBR
@@ -686,7 +686,7 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 					} else { // No hay siguiente...
 						gap := mbr.MbrSize - offset
 						if p.PartSize <= gap {
-							if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+							if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
 								p.PartStart = offset + 1
 								mbr.MbrPartitions[i] = p
 								// Se crea un EBR
@@ -713,45 +713,74 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 			fmt.Println("[!] Ya existe una partición extendida.")
 		}
 	case 'l':
-		// Existe una extendida
+		fmt.Println("[*] Se creara un particion Logica...")
+		// Comprobar si existe una extendida
 		if infparts.extended {
 			var indexExt int64
-			if !nameAlreadyExist(mbr.MbrPartitions, p.PartName) {
+			// Comprobar que el nombre no exista...
+			if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
+				// Obtener el índice de la partición extendida
 				for i, cp := range mbr.MbrPartitions {
 					if cp.PartStatus == 1 && cp.PartType == 'e' {
 						indexExt = int64(i)
 						break
 					}
 				}
-				// extp : extended partition
-				extp := mbr.MbrPartitions[indexExt]
+				// Guardar la partición extendida
+				partExt := mbr.MbrPartitions[indexExt]
 				// Leo el primer EBR
-				firstEbr := readEBR(path, extp.PartStart)
-				sizOfEbr := int64(binary.Size(extp))
+				firstEbr := readEBR(path, partExt.PartStart)
+				auxEbr := EBR{}
+				sizOfEbr := int64(binary.Size(auxEbr))
 				// Desplazamiento = inicio del primer EBR + tamaño del EBR
 				offset := firstEbr.PartStart + sizOfEbr
+				// Se guarda en auxEBR el primer EBR
+				auxEbr = firstEbr
 				// Comprobación del espacio...
-				auxEbr := firstEbr
-				endPart := extp.PartStart + extp.PartSize
-				// Buscando espacio en el disco
+				endPart := partExt.PartStart + partExt.PartSize
+				//-------------------------------------------------------------------------
+				fmt.Println("Info Extendida...")
+				printPart(partExt)
+				fmt.Println("Primer EBR, desde 'l'...")
+				printEBR(firstEbr)
+				fmt.Println("EBR AUX...")
+				printEBR(auxEbr)
+				fmt.Println("-------------------------------------")
+				fmt.Println("Tamaño EBR: ", sizOfEbr)
+				fmt.Println("Desplazamiento: ", offset)
+				fmt.Println("Fin Particion Ext: ", endPart)
+				fmt.Println("-------------------------------------")
+				//-------------------------------------------------------------------------
+				// Buscando espacio en el disco. Desplazamiento < Tamaño de la partición
 				for offset < endPart {
-					// Sino hay una partición siguiente
+					// Sino hay una partición siguiente ...
 					if auxEbr.PartNext == 0 {
+						// Diferencia entre el final de la particion y el desplazamiento
 						gap := endPart - offset
 						if p.PartSize <= gap {
+							auxEbr.PartStatus = 1
 							auxEbr.PartFit = p.PartFit
 							auxEbr.PartSize = p.PartSize
 							auxEbr.PartNext = offset + p.PartSize + 1
 							auxEbr.PartName = p.PartName
 							// Escribir el EBR
+							fmt.Println("EBR AUX que se escribira...")
+							printEBR(auxEbr)
 							writeEBR(path, auxEbr, auxEbr.PartStart)
+							fmt.Println("-------------------------------------")
+							fmt.Println("EBR AUX que se escribio...")
+							ebraux := readEBR(path, auxEbr.PartStart)
+							printEBR(ebraux)
+							fmt.Println("-------------------------------------")
 							// Crear un nuevo EBR
-							nuevoEBR := EBR{PartStatus: 1, PartFit: p.PartFit, PartStart: (offset + p.PartSize + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
+							nuevoEBR := EBR{PartStatus: 0, PartFit: p.PartFit, PartStart: (offset + p.PartSize + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
 							writeEBR(path, nuevoEBR, nuevoEBR.PartStart)
 							fmt.Println("*** Particion L creada exitosamente ***")
+							flgCreated = true
 							break
 						} else {
 							fmt.Println("[!] No se puede crear la particion, no hay espacio.")
+							flgCreated = false
 							break
 						}
 					} else {
@@ -763,20 +792,63 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 			}
 		} else {
 			fmt.Println("[!] No es posible crear la particion logica, no existe una extendida.")
+			flgCreated = false
 		}
 	}
 	return flgCreated, mbr
 }
 
-func nameAlreadyExist(partitions [4]Partition, name [16]byte) bool {
+func nameAlreadyExist(path string, partitions [4]Partition, name [16]byte) bool {
 	for _, p := range partitions {
-		if p.PartName == name {
-			return true
-		}
+		if p.PartType == 'p' {
+			if p.PartName == name {
+				return true
+			}
+		} else if p.PartType == 'e' {
+			if p.PartName == name {
+				return true
+			}
+			// Revisar el nombre de las particiones logicas
+			// Leer el primer EBR
+			ebr := readEBR(path, p.PartStart)
+			// Posicion en que finaliza la particion (sig. ebr)
+			endPosition := p.PartStart + p.PartSize
+			sizeOfEbr := int64(binary.Size(ebr))
+			offset := sizeOfEbr + ebr.PartStart
+			for offset < endPosition {
+				if ebr.PartName == name {
+					return true
+				}
+				if ebr.PartNext != 0 {
+					offset = sizeOfEbr + ebr.PartNext
+					ebr = readEBR(path, ebr.PartNext)
+				} else {
+					break
+				}
+			} // Finalizar ~ For
+		} // Else de que no tiene asignada particion...
 	}
 	return false
 }
 
-func printEBR(ext Partition) {
+func printPart(p Partition) {
+	fmt.Println("   - Status: 1")
+	fmt.Println("   - Type: ", string(p.PartType))
+	fmt.Println("   - Fit: ", string(p.PartFit))
+	fmt.Println("   - Start: ", p.PartStart)
+	fmt.Println("   - Size: ", p.PartSize)
+	fmt.Println("   - Name: ", string(p.PartName[:]))
+}
 
+func printEBR(e EBR) {
+	if e.PartStatus == 0 {
+		fmt.Println("   Estatus: 0")
+	} else {
+		fmt.Println("   Estatus: 1")
+	}
+	fmt.Println("   Ajuste: ", string(e.PartFit))
+	fmt.Println("   Inicio: ", e.PartStart)
+	fmt.Println("   Tamaño: ", e.PartSize)
+	fmt.Println("   Siguiente: ", e.PartNext)
+	fmt.Println("   Nombre: ", string(e.PartName[:]))
 }
