@@ -71,7 +71,7 @@ type InfoPartitions struct {
 }
 
 func main() {
-	var comando string = ""
+	/* var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -85,7 +85,8 @@ func main() {
 		arrayCmd := analizar(comando)
 		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
-	}
+	} */
+	printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
 }
 
 func execCommands(cmds []Token) {
@@ -260,6 +261,7 @@ func fdisk(comando CommandS) {
 		case "add":
 			if n, err := strconv.Atoi(prm.Value); err == nil {
 				add = int64(n)
+				size = add
 			} else {
 				fmt.Println("[!] El valor del parametro 'add' no es un numero.")
 			}
@@ -307,10 +309,10 @@ func fdisk(comando CommandS) {
 		}
 	}
 	// Verificación de los parametros obligatorios
-	if size > 0 && path != "" && name != "" {
+	if size != 0 && path != "" && name != "" {
 		fmt.Println("\n===== FORMATEO DE DISCO ========================================")
-		if add > 0 { // Se va a agregar espacio
-
+		if add != 0 { // Se va a agregar espacio
+			fixDiskAdd(path, add, unit, name)
 		} else if delete == 'a' { // Se realizará un formateo 'fast'
 
 		} else if delete == 'u' { // Se realizará un formateo 'full'
@@ -429,24 +431,7 @@ func readMBR(path string) MBR {
 	}
 
 	// Si todo sale bien se imprimirán los valores del MBR recuperado
-	t := recMbr.MbrTime
-	fmt.Println("\n---MBR--------------------------------")
-	fmt.Println("   Tamaño: ", recMbr.MbrSize)
-	fmt.Println("   Firma: ", recMbr.MbrDiskSignature)
-	fmt.Println("   F/H: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds)
-	fmt.Println("   Particiones:")
-	for i, p := range recMbr.MbrPartitions {
-		if p.PartStatus == 1 {
-			fmt.Println("   P[", i, "]")
-			fmt.Println("   - Status: 1")
-			fmt.Println("   - Type: ", string(p.PartType))
-			fmt.Println("   - Fit: ", string(p.PartFit))
-			fmt.Println("   - Start: ", p.PartStart)
-			fmt.Println("   - Size: ", p.PartSize)
-			fmt.Println("   - Name: ", string(p.PartName[:]))
-		}
-	}
-	fmt.Println("--------------------------------------")
+	//printMBR(recMbr)
 	return recMbr
 }
 
@@ -474,14 +459,6 @@ func readEBR(path string, position int64) EBR {
 	}
 
 	// Si todo sale bien se imprimirán los valores del MBR recuperado
-	/* fmt.Println("\n---EBR--------------------------------")
-	fmt.Println("   Estatus: ", string(recEbr.PartStatus))
-	fmt.Println("   Ajuste: ", string(recEbr.PartFit))
-	fmt.Println("   Inicio: ", recEbr.PartStart)
-	fmt.Println("   Tamaño: ", recEbr.PartSize)
-	fmt.Println("   Siguiente: ", recEbr.PartNext)
-	fmt.Println("   Nombre: ", string(recEbr.PartName[:]))
-	fmt.Println("--------------------------------------") */
 	return recEbr
 }
 
@@ -738,19 +715,6 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 				auxEbr = firstEbr
 				// Comprobación del espacio...
 				endPart := partExt.PartStart + partExt.PartSize
-				//-------------------------------------------------------------------------
-				fmt.Println("Info Extendida...")
-				printPart(partExt)
-				fmt.Println("Primer EBR, desde 'l'...")
-				printEBR(firstEbr)
-				fmt.Println("EBR AUX...")
-				printEBR(auxEbr)
-				fmt.Println("-------------------------------------")
-				fmt.Println("Tamaño EBR: ", sizOfEbr)
-				fmt.Println("Desplazamiento: ", offset)
-				fmt.Println("Fin Particion Ext: ", endPart)
-				fmt.Println("-------------------------------------")
-				//-------------------------------------------------------------------------
 				// Buscando espacio en el disco. Desplazamiento < Tamaño de la partición
 				for offset < endPart {
 					// Sino hay una partición siguiente ...
@@ -764,14 +728,7 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 							auxEbr.PartNext = offset + p.PartSize + 1
 							auxEbr.PartName = p.PartName
 							// Escribir el EBR
-							fmt.Println("EBR AUX que se escribira...")
-							printEBR(auxEbr)
 							writeEBR(path, auxEbr, auxEbr.PartStart)
-							fmt.Println("-------------------------------------")
-							fmt.Println("EBR AUX que se escribio...")
-							ebraux := readEBR(path, auxEbr.PartStart)
-							printEBR(ebraux)
-							fmt.Println("-------------------------------------")
 							// Crear un nuevo EBR
 							nuevoEBR := EBR{PartStatus: 0, PartFit: p.PartFit, PartStart: (offset + p.PartSize + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
 							writeEBR(path, nuevoEBR, nuevoEBR.PartStart)
@@ -841,6 +798,7 @@ func printPart(p Partition) {
 }
 
 func printEBR(e EBR) {
+	fmt.Println("> EBR INFO:")
 	if e.PartStatus == 0 {
 		fmt.Println("   Estatus: 0")
 	} else {
@@ -851,4 +809,118 @@ func printEBR(e EBR) {
 	fmt.Println("   Tamaño: ", e.PartSize)
 	fmt.Println("   Siguiente: ", e.PartNext)
 	fmt.Println("   Nombre: ", string(e.PartName[:]))
+}
+
+func printMBR(m MBR) {
+	t := m.MbrTime
+	fmt.Println("\n---MBR--------------------------------")
+	fmt.Println("   Tamaño: ", m.MbrSize)
+	fmt.Println("   Firma: ", m.MbrDiskSignature)
+	fmt.Println("   F/H: ", t.Day, "/", t.Month, "/", t.Year, " ", t.Hour, ":", t.Minute, ":", t.Seconds)
+	fmt.Println("--------------------------------------")
+}
+
+func printDiskInfo(path string) {
+	m := readMBR(path)
+	printMBR(m)
+	fmt.Println("   Particiones:")
+	for i, p := range m.MbrPartitions {
+		if p.PartStatus == 1 {
+			fmt.Println("   P[", i, "]")
+			printPart(p)
+			if p.PartType == 'e' {
+				position := p.PartStart
+				for true {
+					ebr := readEBR(path, position)
+					if ebr.PartStatus == 0 {
+						break
+					} else {
+						printEBR(ebr)
+						position = ebr.PartNext
+					}
+				}
+			}
+		}
+	}
+}
+
+func fixDiskAdd(path string, size int64, unit byte, name string) {
+	mbr := readMBR(path)
+	space := getSize(size, unit)
+	position := 0
+	flgFound := false
+	var bname [16]byte
+	copy(bname[:], name)
+	var p Partition
+	// Encontrar la partición a la cual se le agregara/quitara espacio
+	for i, cp := range mbr.MbrPartitions {
+		if cp.PartName == bname && cp.PartStatus == 1 {
+			flgFound = true
+			position = i
+			p = cp
+			break
+		}
+	}
+	if flgFound {
+		// Si espacio es menor a cero se quitara espacio
+		if space < 0 {
+			// Si el espacio a eliminar es menor
+			if space < p.PartSize {
+				p.PartSize = p.PartSize + space // se supone que es un número negativo...
+				mbr.MbrPartitions[position] = p
+				writeMBR(path, mbr)
+			} else {
+				fmt.Println("[!] El espacio a quitar es mayor al tamaño de la particion.")
+				return
+			}
+		} else { // El espacio es mayor 0, por lo que se agregará espacio
+			// Si es la ultima particion...
+			if position == 3 {
+				gap := mbr.MbrSize - (p.PartStart + p.PartSize)
+				if gap >= space {
+					p.PartSize = p.PartSize + space
+					mbr.MbrPartitions[position] = p
+					writeMBR(path, mbr)
+				} else {
+					fmt.Println("[!] El espacio a agregar es mayor al disponible.")
+					return
+				}
+			} else {
+				var nextPartition Partition
+				var extra int64
+				var nextPos = position + 1 // Indice de la siguiente particion
+
+				for nextPos < 5 {
+					fmt.Println("Position: ", position)
+					fmt.Println("1 NextPos: ", nextPos)
+					if nextPos == 4 {
+						extra = mbr.MbrSize - (p.PartStart + p.PartSize)
+						fmt.Println("1 Extra: ", extra)
+						break
+					} else {
+						fmt.Println("2 NextPos: ", nextPos)
+						nextPartition = mbr.MbrPartitions[nextPos]
+						nextPos = nextPos + 1
+						if nextPartition.PartStatus == 1 {
+							extra = nextPartition.PartStart - (p.PartStart + p.PartSize)
+							fmt.Println("1 Extra: ", extra)
+							break
+						}
+					}
+				}
+				//
+				if extra >= space {
+					p.PartSize = p.PartSize + space
+					mbr.MbrPartitions[position] = p
+					writeMBR(path, mbr)
+				} else {
+					fmt.Println("[!] El tamaño que se desea agregar excede al tamaño disponible en el disco.")
+					return
+				}
+			}
+			fmt.Println("** Se ha modificado el tamaño de la partición con exito. ***")
+		}
+	} else {
+		fmt.Println("[!] No se ha encontrado la particion: ", name)
+	}
 }
