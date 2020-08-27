@@ -49,6 +49,9 @@ func analizar(entrada string) []Token {
 			} else if currentChar == '#' {
 				state = commentState
 				ctoken += string(currentChar)
+			} else if currentChar == '=' {
+				state = initState
+				ctoken += ""
 			} else if currentChar == '"' {
 				state = stringState
 				ctoken += string(currentChar)

@@ -71,7 +71,7 @@ type InfoPartitions struct {
 }
 
 func main() {
-	/* var comando string = ""
+	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -85,7 +85,7 @@ func main() {
 		arrayCmd := analizar(comando)
 		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
-	} */
+	}
 	printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
 }
 
@@ -146,6 +146,17 @@ func execCommands(cmds []Token) {
 			case "mount":
 			case "unmount":
 			case "rep":
+				//Reportes tiene los atributos nombre, path(salida), ruta(entrada), id(particion montada)
+				x = x + 1 // Alcanzo el primer parametro
+				cmd := CommandS{"rep", make([]Parameter, 0, 4)}
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+					x = x + 2
+					if x >= cmdsLen {
+						break
+					}
+				}
+				fmt.Println(cmd)
 			}
 		case "parametro":
 		case "numero":
@@ -268,8 +279,10 @@ func fdisk(comando CommandS) {
 		case "delete":
 			if strings.ToLower(prm.Value) == "fast" {
 				delete = 'a'
+				size = 1
 			} else if strings.ToLower(prm.Value) == "full" {
 				delete = 'u'
+				size = 1
 			} else {
 				fmt.Println("[!] El valor del parametro 'delete' es invalido.")
 			}
@@ -314,9 +327,15 @@ func fdisk(comando CommandS) {
 		if add != 0 { // Se va a agregar espacio
 			fixDiskAdd(path, add, unit, name)
 		} else if delete == 'a' { // Se realizará un formateo 'fast'
-
+			fmt.Println("Path: ", path)
+			fmt.Println("Name: ", name)
+			fmt.Println("Type: ", string(delete))
+			fixDiskDelete(path, name, delete)
 		} else if delete == 'u' { // Se realizará un formateo 'full'
-
+			fmt.Println("Path: ", path)
+			fmt.Println("Name: ", name)
+			fmt.Println("Type: ", string(delete))
+			fixDiskDelete(path, name, delete)
 		} else { // Se creará una partición
 			var bname [16]byte
 			var partCreated bool
@@ -482,6 +501,28 @@ func writeMBR(path string, mbr MBR) {
 		fmt.Println("[!] Ha ocurrido un error al escribir el MBR en el disco.")
 	}
 
+}
+
+func writeByteArray(path string, position int64, size int64) {
+	file, err := os.OpenFile(path, os.O_RDWR, os.ModePerm)
+	if err != nil {
+		log.Println("[!] Error al abrir disco. ", err)
+		return
+	}
+	defer file.Close()
+	//Posición al inicio del archivo
+	file.Seek(position, 1)
+	zeroByte := make([]byte, size)
+	zb := &zeroByte
+	//Escritura del struct MBR
+	var bin bytes.Buffer
+	binary.Write(&bin, binary.BigEndian, zb)
+	state := writeBytes(file, bin.Bytes())
+	if state {
+		fmt.Println("*** Escritura de []bytes exitosa  ***")
+	} else {
+		fmt.Println("[!] Ha ocurrido un error al escribir el []bytes.")
+	}
 }
 
 func writeEBR(path string, ebr EBR, position int64) {
@@ -922,5 +963,69 @@ func fixDiskAdd(path string, size int64, unit byte, name string) {
 		}
 	} else {
 		fmt.Println("[!] No se ha encontrado la particion: ", name)
+	}
+}
+
+func fixDiskDelete(path string, name string, typeDel byte) {
+	mbr := readMBR(path)
+	flgfound := false
+	position := int64(0)
+	var bname [16]byte
+	copy(bname[:], name)
+	// Recorrer las particiones...
+	for i, p := range mbr.MbrPartitions {
+		if p.PartName == bname && p.PartStatus == 1 {
+			flgfound = true
+			position = int64(i)
+			break
+		}
+	}
+	// Fast Delete
+	if typeDel == 'a' {
+		// Si la particion existe
+		if flgfound {
+			if mbr.MbrPartitions[position].PartType == 'p' {
+				// Se marca la partición como partición inactiva...
+				mbr.MbrPartitions[position].PartStatus = 0
+				writeMBR(path, mbr)
+				fmt.Println("*** Se ha eliminado la partición ", name, " *** ")
+			} else if mbr.MbrPartitions[position].PartType == 'e' {
+				// Se marca la partición como partición inactiva...
+				mbr.MbrPartitions[position].PartStatus = 0
+				writeMBR(path, mbr)
+				fmt.Println("*** Se ha eliminado la partición ", name, " *** ")
+			}
+		} else {
+			fmt.Println("[!] No se encontro la particion '", name, "'.")
+		}
+		// Full delete
+	} else if typeDel == 'u' {
+		// Si la particion existe...
+		if flgfound {
+			if mbr.MbrPartitions[position].PartType == 'p' {
+				psize := mbr.MbrPartitions[position].PartSize
+				pstart := mbr.MbrPartitions[position].PartStart
+				// Se llena de ceros la partición...
+				writeByteArray(path, pstart, psize)
+				// Resetear la partición del mbr
+				mbr.MbrPartitions[position] = Partition{}
+				// Escribir MBR con la información actualizada
+				writeMBR(path, mbr)
+				fmt.Println("*** Se ha eliminado la partición ", name, " *** ")
+			} else if mbr.MbrPartitions[position].PartType == 'e' {
+				psize := mbr.MbrPartitions[position].PartSize
+				pstart := mbr.MbrPartitions[position].PartStart
+				// Se llena de ceros la partición...
+				writeByteArray(path, pstart, psize)
+				// Resetear la partición del mbr
+				mbr.MbrPartitions[position] = Partition{}
+				// Escribir MBR con la información actualizada
+				writeMBR(path, mbr)
+				fmt.Println("*** Se ha eliminado la partición ", name, " *** ")
+				return
+			}
+		} else {
+			fmt.Println("[!] No se encontro la particion '", name, "'.")
+		}
 	}
 }
