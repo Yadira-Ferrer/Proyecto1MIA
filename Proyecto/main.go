@@ -63,16 +63,29 @@ type EBR struct {
 	PartName   [16]byte
 }
 
-// InfoPartitions información sobre particiones
+//InfoPartitions información sobre particiones
 type InfoPartitions struct {
 	free      bool
 	primaries int
 	extended  bool
 }
 
+//Mounted información sobre particiones a montar
+type Mounted struct {
+	Path   string
+	Name   string
+	Part   Partition
+	Number int64
+	Letter byte
+}
+
+var sliceMP []Mounted
+
 func main() {
 	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
+
+	sliceMP = make([]Mounted, 0)
 
 	for {
 		fmt.Printf("[Ingrese Comando]: ")
@@ -144,19 +157,35 @@ func execCommands(cmds []Token) {
 				}
 				fdisk(cmd)
 			case "mount":
+				//Tiene los parametros path y name
+				x = x + 1 // Alcanzo el primer parametro
+				cmd := CommandS{"mount", make([]Parameter, 0, 0)}
+				if x < cmdsLen {
+					for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+						x = x + 2
+						if x >= cmdsLen {
+							break
+						}
+					}
+				}
+				//fmt.Println(cmd)
+				MountPartition(cmd)
 			case "unmount":
 			case "rep":
 				//Reportes tiene los atributos nombre, path(salida), ruta(entrada), id(particion montada)
 				x = x + 1 // Alcanzo el primer parametro
 				cmd := CommandS{"rep", make([]Parameter, 0, 4)}
-				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
-					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
-					x = x + 2
-					if x >= cmdsLen {
-						break
+				if x < cmdsLen {
+					for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+						x = x + 2
+						if x >= cmdsLen {
+							break
+						}
 					}
 				}
-				fmt.Println(cmd)
+				//fmt.Println(cmd)
 			}
 		case "parametro":
 		case "numero":
@@ -353,7 +382,7 @@ func fdisk(comando CommandS) {
 			}
 		}
 		//readMBR(path)
-		fmt.Println("\n================================================================")
+		fmt.Println("================================================================")
 	} else {
 		fmt.Println("[!~FDISK] Faltan parametros obligatorios.")
 	}
@@ -461,8 +490,9 @@ func readEBR(path string, position int64) EBR {
 	}
 	defer file.Close()
 	// Posicion del puntero
-	currentPosition, err := file.Seek(position, 1)
-	fmt.Println("Posicion 'Seek' ReadEbr: ", currentPosition)
+	//currentPosition, err := file.Seek(position, 1)
+	file.Seek(position, 1)
+	//fmt.Println("Posicion 'Seek' ReadEbr: ", currentPosition)
 	// Se declara EBR contenedor
 	recEbr := EBR{}
 	// Se obtiene el tamaño del EBR
@@ -535,8 +565,9 @@ func writeEBR(path string, ebr EBR, position int64) {
 	// .Seek(position,mode) mode:
 	// 0 = Inicio, 1 = Desde donde esta el puntero, 2 = Del final al inicio
 	// Posición al inicio del archivo
-	currentPosition, err := file.Seek(position, 1)
-	fmt.Println("Posicion 'Seek' WriteEbr: ", currentPosition)
+	//currentPosition, err := file.Seek(position, 1)
+	file.Seek(position, 1)
+	//fmt.Println("Posicion 'Seek' WriteEbr: ", currentPosition)
 	refebr := &ebr
 	//Escritura del struct EBR
 	var binthree bytes.Buffer
@@ -1028,4 +1059,109 @@ func fixDiskDelete(path string, name string, typeDel byte) {
 			fmt.Println("[!] No se encontro la particion '", name, "'.")
 		}
 	}
+}
+
+//MountPartition : se montarán las particoines
+func MountPartition(cmd CommandS) {
+	var path string = ""
+	var name string = ""
+	//Si no vienen parametros, se deben imprimir las particiones montadas
+	fmt.Println("\n===== MONTAR PARTCION ==========================================")
+	if len(cmd.Params) == 0 {
+		if len(sliceMP) == 0 {
+			fmt.Println("[*] No se han montando particiones...")
+		} else {
+			fmt.Println("Particiones montadas:")
+			for _, mp := range sliceMP {
+				id := "vd" + string(mp.Letter) + strconv.FormatInt(mp.Number, 10)
+				fmt.Println("> id:", id, "| path:", mp.Path, "| name:", mp.Name)
+			}
+		}
+	} else {
+		for _, param := range cmd.Params {
+			if strings.ToLower(param.Name) == "path" {
+				path = delQuotationMark(param.Value)
+			} else if strings.ToLower(param.Name) == "name" {
+				name = delQuotationMark(param.Value)
+			} else {
+				fmt.Println("[!] Parametro para el comando 'mount' invalido...")
+			}
+		}
+		if path != "" && name != "" {
+			var bname [16]byte
+			var num int64 = 1
+			var letter byte = 'a'
+			copy(bname[:], name)
+			found := false
+			flgext := false
+			mbr := readMBR(path)
+			if mbr != (MBR{}) {
+				mount := Mounted{}
+				for _, p := range mbr.MbrPartitions {
+					if p.PartName == bname && p.PartStatus == 1 {
+						if p.PartType == 'p' {
+							mount.Part = p
+							found = true
+							break
+						} else {
+							flgext = true
+							break
+						}
+					}
+				}
+				// Si se ha encontrado la partición
+				if found {
+					// Verificar que la partición se encuentre montada
+					if !IsMounted(path, name) {
+						if len(sliceMP) != 0 {
+							letter, num = GetPartitionNum(path)
+						}
+						mount.Name = name
+						mount.Path = path
+						mount.Number = num
+						mount.Letter = letter
+						sliceMP = append(sliceMP, mount)
+						fmt.Println("*** Partición Montada ***")
+					} else {
+						fmt.Println("[*] La partición '", name, "' ya se encuentra montada...")
+					}
+				} else {
+					if flgext {
+						fmt.Println("[!] Ha intentado montar una partición que no es primaria...")
+					} else {
+						fmt.Println("[!] No se ha encontrado la partición '", name, "'...")
+					}
+				}
+			} else {
+				fmt.Println("[!] Ha ocurrio un error puede que el disco no exista...")
+			}
+		} else {
+			fmt.Println("[!] Faltan parametros obligatorios 'mount'...")
+		}
+	}
+	fmt.Println("================================================================")
+}
+
+//GetPartitionNum retorna el número de la partición asignada para ese disco
+func GetPartitionNum(path string) (byte, int64) {
+	var num int64 = 1
+	var letter byte = 'a'
+	for _, m := range sliceMP {
+		num = m.Number
+		letter = m.Letter
+		if m.Path == path {
+			return letter, num + 1
+		}
+	}
+	return letter + 1, 1
+}
+
+//IsMounted retorna verdadero si la partición ya esta montada
+func IsMounted(path string, name string) bool {
+	for _, mp := range sliceMP {
+		if mp.Path == path && mp.Name == name {
+			return true
+		}
+	}
+	return false
 }
