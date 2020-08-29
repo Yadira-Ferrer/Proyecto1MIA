@@ -172,14 +172,26 @@ func execCommands(cmds []Token) {
 				//fmt.Println(cmd)
 				MountPartition(cmd)
 			case "unmount":
+				x = x + 1 // Alcanzo el primer parametro
+				cmd := CommandS{"unmount", make([]Parameter, 0, 0)}
+				if x < cmdsLen {
+					for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+2].value})
+						x = x + 3
+						if x >= cmdsLen {
+							break
+						}
+					}
+				}
+				UnmountPartition(cmd)
 			case "rep":
 				//Reportes tiene los atributos nombre, path(salida), ruta(entrada), id(particion montada)
 				x = x + 1 // Alcanzo el primer parametro
-				cmd := CommandS{"rep", make([]Parameter, 0, 4)}
+				cmd := CommandS{"rep", make([]Parameter, 0, 0)}
 				if x < cmdsLen {
 					for cmds[x].name != "comando" && cmds[x].name != "comentario" {
-						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
-						x = x + 2
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+2].value})
+						x = x + 3
 						if x >= cmdsLen {
 							break
 						}
@@ -187,13 +199,8 @@ func execCommands(cmds []Token) {
 				}
 				//fmt.Println(cmd)
 			}
-		case "parametro":
-		case "numero":
 		case "comentario":
 			fmt.Println(cmds[x].value)
-		case "cadena":
-		case "path":
-		case "id":
 		}
 	}
 }
@@ -1147,10 +1154,12 @@ func GetPartitionNum(path string) (byte, int64) {
 	var num int64 = 1
 	var letter byte = 'a'
 	for _, m := range sliceMP {
+		if letter < m.Letter {
+			letter = m.Letter
+		}
 		num = m.Number
-		letter = m.Letter
 		if m.Path == path {
-			return letter, num + 1
+			return m.Letter, num + 1
 		}
 	}
 	return letter + 1, 1
@@ -1164,4 +1173,51 @@ func IsMounted(path string, name string) bool {
 		}
 	}
 	return false
+}
+
+//UnmountPartition : desmonta las particiones
+func UnmountPartition(cmd CommandS) {
+	pmounted := Mounted{}
+	flgfound := false
+	index := 0
+	fmt.Println("\n===== DESMONTAR PARTCION =======================================")
+	for _, param := range cmd.Params {
+		idp := param.Value
+		for i, mp := range sliceMP {
+			idm := "vd" + string(mp.Letter) + strconv.FormatInt(mp.Number, 10)
+			if idp == idm {
+				flgfound = true
+				index = i
+				pmounted = mp
+				break
+			}
+		}
+		//Validaciones
+		if flgfound {
+			mbr := readMBR(pmounted.Path)
+			var bname [16]byte
+			copy(bname[:], pmounted.Name)
+			for i, p := range mbr.MbrPartitions {
+				if bname == p.PartName {
+					mbr.MbrPartitions[i] = pmounted.Part
+					writeMBR(pmounted.Path, mbr)
+					sliceMP = RemoveMountedPartition(sliceMP, index)
+					fmt.Println("*** Particion", idp, " Desmontada ***")
+					break
+				}
+			}
+		} else {
+			fmt.Println("[!] No se ha montado la particion con el id", idp, "...")
+		}
+		//Reinicio de valores...
+		pmounted = Mounted{}
+		flgfound = false
+		index = 0
+	}
+	fmt.Println("================================================================")
+}
+
+//RemoveMountedPartition remueve la partición especificada...
+func RemoveMountedPartition(s []Mounted, index int) []Mounted {
+	return append(s[:index], s[index+1:]...)
 }
