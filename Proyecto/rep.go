@@ -11,7 +11,7 @@ import (
 
 // dot -Tpng filename.dot -o outfile.png
 
-// MbrReport : genera el script del reporte
+//MbrReport : genera el script del reporte
 func MbrReport(path string, mbr MBR) {
 	p, n, e := SeparatePath(path)
 	t := mbr.MbrTime
@@ -37,6 +37,43 @@ func MbrReport(path string, mbr MBR) {
 	}
 	cdot += "</table>>];}"
 	// Se escribirá el archivo dot
+	state := WriteDotFile(p, n, cdot)
+	if state {
+		fmt.Println("> DOT escrito exitosamente...")
+		outType := "-T" + e
+		pathDot := p + n + ".dot"
+		pathRep := path
+		DotGenerator(outType, pathDot, pathRep)
+	}
+}
+
+//DiskReport : genera el reporte del disco
+func DiskReport(path string, mbr MBR, dskpath string) {
+	p, n, e := SeparatePath(path)
+	cdot := "digraph test {\ngraph [ratio=fill];\nnode [label=\"\\N\", fontsize=15, shape=plaintext];\ngraph [bb=\"0,0,352,154\"];\narset [label=<\n<TABLE ALIGN=\"CENTER\">\n<TR>\n<TD>MBR</TD>\n"
+	for _, p := range mbr.MbrPartitions {
+		if p.PartStatus == 0 {
+			cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Libre</TD></TR>\n</TABLE>\n</TD>\n"
+		} else {
+			if p.PartType == 'p' {
+				cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Primaria<br/>" + GetString(p.PartName) + "</TD></TR>\n</TABLE>\n</TD>\n"
+			} else if p.PartType == 'e' {
+				cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Extendida<br/>" + GetString(p.PartName) + "</TD></TR>\n<TR>\n<TD>\n<TABLE BORDER=\"1\">\n<TR>\n"
+				position := p.PartStart
+				for true {
+					ebr := readEBR(dskpath, position)
+					if ebr.PartStatus == 0 {
+						break
+					} else {
+						cdot += "<TD>EBR</TD>\n<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Logica<br/>" + GetString(ebr.PartName) + "</TD></TR>\n</TABLE>\n</TD>\n"
+						position = ebr.PartNext
+					}
+				}
+				cdot += "</TR>\n</TABLE>\n</TD>\n</TR>\n</TABLE>\n</TD>\n"
+			}
+		}
+	}
+	cdot += "</TR>\n</TABLE>\n>, ];\n}"
 	state := WriteDotFile(p, n, cdot)
 	if state {
 		fmt.Println("> DOT escrito exitosamente...")

@@ -746,8 +746,8 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 							if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
 								p.PartStart = offset + 1
 								mbr.MbrPartitions[i] = p
-								// Se crea un EBR
-								ebr := EBR{PartStatus: 1, PartFit: p.PartFit, PartStart: (offset + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
+								// Se crea un EBR OJO: se cambio partStatus de 1 a 0
+								ebr := EBR{PartStatus: 0, PartFit: p.PartFit, PartStart: (offset + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
 								// Se escribe el EBR en el disco
 								writeEBR(path, ebr, p.PartStart)
 								flgCreated = true
@@ -1261,11 +1261,12 @@ func MakeRep(cmd CommandS) {
 	}
 	// Si la particion ha sido encontrada
 	if flgfound {
+		mbr := readMBR(cm.Path)
 		switch name {
 		case "mbr":
-			mbr := readMBR(cm.Path)
 			MbrReport(path, mbr)
 		case "disk":
+			DiskReport(path, mbr, cm.Path)
 		default:
 			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
 		}
