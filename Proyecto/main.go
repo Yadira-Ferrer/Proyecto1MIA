@@ -109,7 +109,7 @@ func execCommands(cmds []Token) {
 		case "comando":
 			switch strings.ToLower(cmds[x].value) {
 			case "exec":
-				exec(cmds[x+2].value)
+				execmd(cmds[x+2].value)
 				x += 2
 			case "pause":
 				fmt.Println("Presione <ENTER> para continuar...")
@@ -190,13 +190,14 @@ func execCommands(cmds []Token) {
 				cmd := CommandS{"rep", make([]Parameter, 0, 0)}
 				if x < cmdsLen {
 					for cmds[x].name != "comando" && cmds[x].name != "comentario" {
-						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+2].value})
-						x = x + 3
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+						x = x + 2
 						if x >= cmdsLen {
 							break
 						}
 					}
 				}
+				MakeRep(cmd)
 				//fmt.Println(cmd)
 			}
 		case "comentario":
@@ -206,7 +207,7 @@ func execCommands(cmds []Token) {
 }
 
 /*----- Comando Exec -----------------------------------------------------*/
-func exec(path string) {
+func execmd(path string) {
 	var content string = ""
 	// Eliminación de las comillas en el path
 	path = delQuotationMark(path)
@@ -451,7 +452,7 @@ func getCurrentTime() Time {
 
 /*----- Función que genera 'firma' del disco -----------------------------*/
 func getSignature(t Time) int64 {
-	return t.Year - t.Day - t.Month - t.Hour - t.Minute - t.Seconds
+	return int64(t.Year - t.Day - t.Month - t.Hour - t.Minute - t.Seconds)
 }
 
 /*----- Función que obtiene el tamaño en bytes del disco -----------------*/
@@ -724,8 +725,8 @@ func createPartition(mbr MBR, p Partition, path string) (bool, MBR) {
 							if !nameAlreadyExist(path, mbr.MbrPartitions, p.PartName) {
 								p.PartStart = offset + 1
 								mbr.MbrPartitions[i] = p
-								// Se crea un EBR
-								ebr := EBR{PartStatus: 1, PartFit: p.PartFit, PartStart: (offset + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
+								// Se crea un EBR (OJO: se cambio PartStatus de 1 a 0)
+								ebr := EBR{PartStatus: 0, PartFit: p.PartFit, PartStart: (offset + 1), PartSize: 0, PartNext: 0, PartName: p.PartName}
 								// Se escribe el EBR en el disco
 								writeEBR(path, ebr, p.PartStart)
 								flgCreated = true
@@ -1220,4 +1221,56 @@ func UnmountPartition(cmd CommandS) {
 //RemoveMountedPartition remueve la partición especificada...
 func RemoveMountedPartition(s []Mounted, index int) []Mounted {
 	return append(s[:index], s[index+1:]...)
+}
+
+//MakeRep : valida
+func MakeRep(cmd CommandS) {
+	id := ""
+	path := ""
+	name := ""
+	//ruta := ""
+	cm := Mounted{}
+	for _, param := range cmd.Params {
+		switch strings.ToLower(param.Name) {
+		case "id": // id de la partición (debe estar montada)
+			id = delQuotationMark(param.Value)
+		case "path": // indica la ruta del reporte
+			path = delQuotationMark(param.Value)
+		case "name": // nombre del reporte a generar
+			name = delQuotationMark(param.Value)
+			name = strings.ToLower(name)
+		case "ruta": // ruta del archivo o carpeta del disco
+			//ruta = delQuotationMark(param.Value)
+		default:
+			fmt.Println("[!] Parametro para el comando 'rep' invalido...")
+		}
+	}
+	fmt.Println("\n===== REPORTES =================================================")
+	fmt.Println("Reporte:", name)
+	fmt.Println("Ubicacion:", path)
+	fmt.Println("Id Particion:", id)
+	// Obtener la particion
+	flgfound := false
+	for _, mp := range sliceMP {
+		idm := "vd" + string(mp.Letter) + strconv.FormatInt(mp.Number, 10)
+		if id == idm {
+			flgfound = true
+			cm = mp
+			break
+		}
+	}
+	// Si la particion ha sido encontrada
+	if flgfound {
+		switch name {
+		case "mbr":
+			mbr := readMBR(cm.Path)
+			MbrReport(path, mbr)
+		case "disk":
+		default:
+			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
+		}
+	} else {
+		fmt.Println("[!] La particion", id, " no se encuentra montada...")
+	}
+	fmt.Println("================================================================")
 }
