@@ -99,12 +99,13 @@ func main() {
 		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
 	}
-	printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
+	//printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
 }
 
 func execCommands(cmds []Token) {
 	cmdsLen := len(cmds)
 	for x := 0; x < cmdsLen; x++ {
+		//fmt.Println("Xi:", x)
 		switch strings.ToLower(cmds[x].name) {
 		case "comando":
 			switch strings.ToLower(cmds[x].value) {
@@ -117,9 +118,9 @@ func execCommands(cmds []Token) {
 				input.Scan()
 			case "mkdisk":
 				x = x + 1
-				cmd := CommandS{"mkdisk", make([]Parameter, 0, 4)}
+				cmd := CommandS{"mkdisk", make([]Parameter, 0, 0)}
 				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
-					//fmt.Println(">>> ", cmds[x].value, cmds[x+1].value)
+					//fmt.Println(">>> [", x, "]", cmds[x].value, "[", strconv.Itoa(x+1), "]", cmds[x+1].value)
 					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
 					x = x + 2
 					if x >= cmdsLen {
@@ -127,6 +128,7 @@ func execCommands(cmds []Token) {
 					}
 				}
 				mkdisk(cmd)
+				x = x - 1
 			case "rmdisk":
 				x = x + 1 // Alcanzo el parametro
 				if cmds[x].value == "path" {
@@ -156,6 +158,7 @@ func execCommands(cmds []Token) {
 					}
 				}
 				fdisk(cmd)
+				x = x - 1
 			case "mount":
 				//Tiene los parametros path y name
 				x = x + 1 // Alcanzo el primer parametro
@@ -169,8 +172,8 @@ func execCommands(cmds []Token) {
 						}
 					}
 				}
-				//fmt.Println(cmd)
 				MountPartition(cmd)
+				x = x - 1
 			case "unmount":
 				x = x + 1 // Alcanzo el primer parametro
 				cmd := CommandS{"unmount", make([]Parameter, 0, 0)}
@@ -184,6 +187,7 @@ func execCommands(cmds []Token) {
 					}
 				}
 				UnmountPartition(cmd)
+				x = x - 1
 			case "rep":
 				//Reportes tiene los atributos nombre, path(salida), ruta(entrada), id(particion montada)
 				x = x + 1 // Alcanzo el primer parametro
@@ -198,7 +202,7 @@ func execCommands(cmds []Token) {
 					}
 				}
 				MakeRep(cmd)
-				//fmt.Println(cmd)
+				x = x - 1
 			}
 		case "comentario":
 			fmt.Println(cmds[x].value)
@@ -225,9 +229,10 @@ func execmd(path string) {
 		}
 		// Se reemplazan los caracteres de salto de linea '\*' definidos por el lenguaje
 		content = strings.Replace(content, "\\*\n", "", -1)
-		fmt.Println("\n", content)
+		//fmt.Println("\n", content)
 		// Se analiza la entrada
 		arrayCmd := analizar(content)
+		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
 	}
 }
@@ -440,8 +445,13 @@ func makeDisk(size int64, path string, name string, unit byte) {
 	//Escritura del struct MBR
 	var binthree bytes.Buffer
 	binary.Write(&binthree, binary.BigEndian, dsk)
-	writeBytes(file, binthree.Bytes())
-	fmt.Println("*** Disco creado exitosamente ***")
+	state := writeBytes(file, binthree.Bytes())
+	if state {
+		fmt.Println("*** Disco creado exitosamente ***")
+	} else {
+		fmt.Println("[!] Ha ocurrido un error al escribir los bytes...")
+	}
+
 }
 
 /*----- Función que obtiene la hora y la fecha actual --------------------*/
