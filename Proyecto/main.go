@@ -1021,6 +1021,10 @@ func fixDiskDelete(path string, name string, typeDel byte) {
 	position := int64(0)
 	var bname [16]byte
 	copy(bname[:], name)
+	if IsMounted(path, name) {
+		fmt.Println("[!] No es posible eliminar la particion porque esta se encuentra montada...")
+		return
+	}
 	// Recorrer las particiones...
 	for i, p := range mbr.MbrPartitions {
 		if p.PartName == bname && p.PartStatus == 1 {
