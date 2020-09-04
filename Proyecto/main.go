@@ -91,7 +91,6 @@ func main() {
 		fmt.Printf("[Ingrese Comando]: ")
 		entrada.Scan()
 		comando = entrada.Text()
-		//comando = strings.ToLower(comando)
 		if comando == "salir" {
 			break
 		}
@@ -203,6 +202,19 @@ func execCommands(cmds []Token) {
 				}
 				MakeRep(cmd)
 				x = x - 1
+			case "mkfs":
+				x = x + 1
+				cmd := CommandS{"mkfs", make([]Parameter, 0, 0)}
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+					//fmt.Println(">>> [", x, "]", cmds[x].value, "[", strconv.Itoa(x+1), "]", cmds[x+1].value)
+					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+					x = x + 2
+					if x >= cmdsLen {
+						break
+					}
+				}
+				x = x - 1
+				Mkfs(cmd)
 			}
 		case "comentario":
 			fmt.Println(cmds[x].value)
@@ -1195,7 +1207,7 @@ func UnmountPartition(cmd CommandS) {
 	pmounted := Mounted{}
 	flgfound := false
 	index := 0
-	fmt.Println("\n===== DESMONTAR PARTCION =======================================")
+	fmt.Println("\n===== DESMONTAR PARTICION =======================================")
 	for _, param := range cmd.Params {
 		idp := param.Value
 		for i, mp := range sliceMP {

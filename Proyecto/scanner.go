@@ -158,7 +158,8 @@ func getIDType(token string) string {
 		"fdisk",
 		"mount",
 		"unmount",
-		"rep":
+		"rep",
+		"mkfs":
 		return "comando"
 	}
 	return "id"
