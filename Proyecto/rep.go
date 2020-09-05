@@ -84,6 +84,12 @@ func DiskReport(path string, mbr MBR, dskpath string) {
 	}
 }
 
+//SuperBootReport : genera el reporte del Super Boot
+func SuperBootReport(mp Mounted) {
+	//superBoot := ReadSuperBoot(mp.Path)
+
+}
+
 //WriteDotFile escribe el archivo .dot
 func WriteDotFile(path string, name string, contenido string) bool {
 	if _, err := os.Stat(path); os.IsNotExist(err) {

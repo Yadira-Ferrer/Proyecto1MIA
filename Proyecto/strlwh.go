@@ -41,7 +41,9 @@ type ArbolVirtualDir struct {
 	aptArregloSubDir     [6]int64
 	aptDetalleDirectorio int64
 	aptArbolVirtualDir   int64
-	avdPropietario       [16]byte
+	avdPropietario       [10]byte // Id del usuario propietario
+	avdGID               [10]byte // Id del grupo al que pertenece el usuario creador
+	avdPermisos          int64    // Codigo con el numero de permiso (777)
 }
 
 //DetalleDirectorio : son los i-nodos
@@ -75,7 +77,9 @@ type TablaInodo struct {
 	sizeArchivo          int64
 	cantBloquesAsignados int64
 	apIndirecto          int64
-	idPropietario        [16]byte
+	idPropietario        [10]byte
+	idUGrupo             [10]byte
+	iPermisos            int64
 }
 
 //BloqueDeDatos : para la creación de archivos

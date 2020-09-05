@@ -77,6 +77,7 @@ type Mounted struct {
 	Part   Partition
 	Number int64
 	Letter byte
+	TMount Time
 }
 
 var sliceMP []Mounted
@@ -1154,6 +1155,7 @@ func MountPartition(cmd CommandS) {
 						mount.Path = path
 						mount.Number = num
 						mount.Letter = letter
+						mount.TMount = getCurrentTime()
 						sliceMP = append(sliceMP, mount)
 						fmt.Println("*** Partición Montada ***")
 					} else {
@@ -1293,6 +1295,8 @@ func MakeRep(cmd CommandS) {
 			MbrReport(path, mbr)
 		case "disk":
 			DiskReport(path, mbr, cm.Path)
+		case "sb":
+			SuperBootReport(cm)
 		default:
 			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
 		}
