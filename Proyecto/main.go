@@ -1296,7 +1296,8 @@ func MakeRep(cmd CommandS) {
 		case "disk":
 			DiskReport(path, mbr, cm.Path)
 		case "sb":
-			SuperBootReport(cm)
+			//fmt.Println("Reporte de SuperBoot")
+			SuperBootReport(path, cm)
 		default:
 			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
 		}

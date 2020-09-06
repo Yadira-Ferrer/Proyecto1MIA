@@ -2,96 +2,96 @@ package main
 
 //SuperBoot : contiene toda la info del sistema
 type SuperBoot struct {
-	nombreHd                 [16]byte
-	cantArbolVirtual         int64
-	cantDetalleDirectorio    int64
-	cantidadInodos           int64
-	cantidadBloques          int64
-	arbolesVirtualesLibres   int64
-	detallesDirectorioLibres int64
-	inodosLibres             int64
-	bloquesLibres            int64
-	fechaCreacion            Time
-	fechaUltimoMontaje       Time
-	conteoMontajes           int64
-	aptBmapArbolDirectorio   int64
-	aptArbolDirectorio       int64
-	aptBmapDetalleDirectorio int64
-	aptDetalleDirectorio     int64
-	aptBmapTablaInodo        int64
-	aptTablaInodo            int64
-	aptBmapBloques           int64
-	aptBloques               int64
-	aptLog                   int64
-	tamStrcArbolDirectorio   int64
-	tamStrcDetalleDirectorio int64
-	tamStrcInodo             int64
-	tamStrcBloque            int64
-	primerBitLibreArbolDir   int64
-	primerBitLibreDetalleDir int64
-	primerBitLibreTablaInodo int64
-	primerBitLibreBloques    int64
-	numeroMagico             int64
+	NombreHd                 [16]byte
+	CantArbolVirtual         int64
+	CantDetalleDirectorio    int64
+	CantidadInodos           int64
+	CantidadBloques          int64
+	ArbolesVirtualesLibres   int64
+	DetallesDirectorioLibres int64
+	InodosLibres             int64
+	BloquesLibres            int64
+	FechaCreacion            Time
+	FechaUltimoMontaje       Time
+	ConteoMontajes           int64
+	AptBmapArbolDirectorio   int64
+	AptArbolDirectorio       int64
+	AptBmapDetalleDirectorio int64
+	AptDetalleDirectorio     int64
+	AptBmapTablaInodo        int64
+	AptTablaInodo            int64
+	AptBmapBloques           int64
+	AptBloques               int64
+	AptLog                   int64
+	TamStrcArbolDirectorio   int64
+	TamStrcDetalleDirectorio int64
+	TamStrcInodo             int64
+	TamStrcBloque            int64
+	PrimerBitLibreArbolDir   int64
+	PrimerBitLibreDetalleDir int64
+	PrimerBitLibreTablaInodo int64
+	PrimerBitLibreBloques    int64
+	NumeroMagico             int64
 }
 
 //ArbolVirtualDir : para la creación de carpetas
 type ArbolVirtualDir struct {
-	fechaCreacion        Time
-	nombreDirectorio     [16]byte
-	aptArregloSubDir     [6]int64
-	aptDetalleDirectorio int64
-	aptArbolVirtualDir   int64
-	avdPropietario       [10]byte // Id del usuario propietario
-	avdGID               [10]byte // Id del grupo al que pertenece el usuario creador
-	avdPermisos          int64    // Codigo con el numero de permiso (777)
+	FechaCreacion        Time
+	NombreDirectorio     [16]byte
+	AptArregloSubDir     [6]int64
+	AptDetalleDirectorio int64
+	AptArbolVirtualDir   int64
+	AvdPropietario       [10]byte // Id del usuario propietario
+	AvdGID               [10]byte // Id del grupo al que pertenece el usuario creador
+	AvdPermisos          int64    // Codigo con el numero de permiso (777)
 }
 
 //DetalleDirectorio : son los i-nodos
 type DetalleDirectorio struct {
-	fileName1           [16]byte
-	apInodo1            int64
-	fechaCreacion1      Time
-	fechaModifiacion1   Time
-	fileName2           [16]byte
-	apInodo2            int64
-	fechaCreacion2      Time
-	fechaModifiacion2   Time
-	fileName3           [16]byte
-	apInodo3            int64
-	fechaCreacion3      Time
-	fechaModifiacion3   Time
-	fileName4           [16]byte
-	apInodo4            int64
-	fechaCreacion4      Time
-	fechaModifiacion4   Time
-	fileName5           [16]byte
-	apInodo5            int64
-	fechaCreacion5      Time
-	fechaModifiacion5   Time
-	apDetalleDirectorio int64 //Apuntador al siguiente detalle-directorio
+	FileName1           [16]byte
+	ApInodo1            int64
+	FechaCreacion1      Time
+	FechaModifiacion1   Time
+	FileName2           [16]byte
+	ApInodo2            int64
+	FechaCreacion2      Time
+	FechaModifiacion2   Time
+	FileName3           [16]byte
+	ApInodo3            int64
+	FechaCreacion3      Time
+	FechaModifiacion3   Time
+	FileName4           [16]byte
+	ApInodo4            int64
+	FechaCreacion4      Time
+	FechaModifiacion4   Time
+	FileName5           [16]byte
+	ApInodo5            int64
+	FechaCreacion5      Time
+	FechaModifiacion5   Time
+	ApDetalleDirectorio int64 //Apuntador al siguiente detalle-directorio
 }
 
 //TablaInodo : para le manejo de archivos de directorio
 type TablaInodo struct {
-	conteoInodo          int64
-	sizeArchivo          int64
-	cantBloquesAsignados int64
-	apIndirecto          int64
-	idPropietario        [10]byte
-	idUGrupo             [10]byte
-	iPermisos            int64
+	ConteoInodo          int64
+	SizeArchivo          int64
+	CantBloquesAsignados int64
+	ApIndirecto          int64
+	IDPropietario        [10]byte
+	IDUGrupo             [10]byte
+	IPermisos            int64
 }
 
 //BloqueDeDatos : para la creación de archivos
 type BloqueDeDatos struct {
-	data [25]byte
+	Data [25]byte
 }
 
 //Log : Bitacora
 type Log struct {
-	tipoOperacion [16]byte
-	tipo          byte // 0 = archivo, 1 = directorio
-	nombre        [16]byte
-	contenido     [50]byte
-	fecha         Time
+	TipoOperacion [16]byte
+	Tipo          byte // 0 = archivo, 1 = directorio
+	Nombre        [16]byte
+	Contenido     [50]byte
+	Fecha         Time
 }

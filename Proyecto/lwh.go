@@ -80,70 +80,74 @@ func MakeFileSystem(idp string, typef byte) {
 		}
 	}
 	if flgfound {
+		var bname [16]byte
 		partition := mpartition.Part
 		// Se realiza el formateo de la partición
 		if typef == 'u' {
 			writeByteArray(mpartition.Path, partition.PartStart, partition.PartSize)
 		}
-		// Almacena la posicion actual
-		var cpd int64 // Current Position Disk Partition
+		// Current Position Disk Partition
+		var cpd int64
 		// Obtener el nombre del disco ¿?
 		// Se obtiene el tamaño de las estructuras y la cantidad (#Estructuras)
 		sStrc, cStrc := GetNumberOfStructures(partition.PartSize)
 		// Se creará el Super Boot
 		newSB := SuperBoot{}
-		copy(newSB.nombreHd[:], mpartition.Name)
-		newSB.arbolesVirtualesLibres = cStrc   // AVD-free = #Estructuras
-		newSB.detallesDirectorioLibres = cStrc // DDir-free = #Estructuras
-		newSB.inodosLibres = cStrc             // Inodos-free = #Estructuras
-		newSB.bloquesLibres = cStrc            // Bloques-free = #Estructuras
-		newSB.fechaCreacion = getCurrentTime()
-		newSB.fechaUltimoMontaje = mpartition.TMount
-		newSB.conteoMontajes = 1
+		// Nombre HD
+		copy(bname[:], mpartition.Name)
+		newSB.NombreHd = bname
+		newSB.ArbolesVirtualesLibres = cStrc   // AVD-free = #Estructuras
+		newSB.DetallesDirectorioLibres = cStrc // DDir-free = #Estructuras
+		newSB.InodosLibres = cStrc             // Inodos-free = #Estructuras
+		newSB.BloquesLibres = cStrc            // Bloques-free = #Estructuras
+		newSB.FechaCreacion = getCurrentTime()
+		newSB.FechaUltimoMontaje = mpartition.TMount
+		newSB.ConteoMontajes = 1
 		// Inicio BMap AVD = Inicio_Particion + SizeSB
 		cpd = partition.PartStart + sStrc.sizeSB
-		newSB.aptBmapArbolDirectorio = cpd
+		newSB.AptBmapArbolDirectorio = cpd
 		// Inicio AVD = Inicio BitMap AVD + #Estructuras
 		cpd = cpd + cStrc
-		newSB.aptArbolDirectorio = cpd
+		newSB.AptArbolDirectorio = cpd
 		// Inicio BMap DDir = Inicio AVD + (sizeAVD*#Estructuras)
 		cpd = cpd + (sStrc.sizeAV * cStrc)
-		newSB.aptBmapDetalleDirectorio = cpd
+		newSB.AptBmapDetalleDirectorio = cpd
 		// Inicio DDir = Inicio BMap DDir + #Estructuras
 		cpd = cpd + cStrc
-		newSB.aptDetalleDirectorio = cpd
+		newSB.AptDetalleDirectorio = cpd
 		// Inicio BMap Inodo = Inicio DDir + (sizeDDir * #Estructuras)
 		cpd = cpd + (sStrc.sizeDDir * cStrc)
-		newSB.aptBmapTablaInodo = cpd
+		newSB.AptBmapTablaInodo = cpd
 		// Inicio Inodos = Inicio BMap Inodo + (5 * sizeInodo)
-		cpd = cpd + (5 * sStrc.sizeInodo)
-		newSB.aptTablaInodo = cpd
+		cpd = cpd + (5 * cStrc)
+		newSB.AptTablaInodo = cpd
 		// Inicio BMap Bloque = Inicio Inodos + (5 * sizeInodo * #Estructuras)
 		cpd = cpd + (5 * sStrc.sizeInodo * cStrc)
-		newSB.aptBmapBloques = cpd
+		newSB.AptBmapBloques = cpd
 		// Inicio Bloque = Inicio Inodo + (20 * #Estructuras)
 		cpd = cpd + (20 * cStrc)
-		newSB.aptBloques = cpd
+		newSB.AptBloques = cpd
 		// Inicio Bitacora (Log) = Inicio Bloque + (20 * sizeBloque * #Estructuras)
 		cpd = cpd + (20 * sStrc.sizeBD * cStrc)
-		newSB.aptLog = cpd
+		newSB.AptLog = cpd
 		// Inicio Copia SB = Inicio Bitacora + (sizeLog * #Estructuras)
 		cpd = cpd + (sStrc.sizeLog * cStrc)
-		newSB.aptLog = cpd
 		//--- Se guarda el tamaño de las estructuras ------------------------------------
-		newSB.tamStrcArbolDirectorio = sStrc.sizeAV
-		newSB.tamStrcDetalleDirectorio = sStrc.sizeDDir
-		newSB.tamStrcInodo = sStrc.sizeInodo
-		newSB.tamStrcBloque = sStrc.sizeBD
+		newSB.TamStrcArbolDirectorio = sStrc.sizeAV
+		newSB.TamStrcDetalleDirectorio = sStrc.sizeDDir
+		newSB.TamStrcInodo = sStrc.sizeInodo
+		newSB.TamStrcBloque = sStrc.sizeBD
 		//--- Se guarda el primer bit vacio del bitmap de cada estructura ---------------
-		newSB.primerBitLibreArbolDir = newSB.aptBmapArbolDirectorio
-		newSB.primerBitLibreDetalleDir = newSB.aptBmapDetalleDirectorio
-		newSB.primerBitLibreTablaInodo = newSB.aptBmapTablaInodo
-		newSB.primerBitLibreBloques = newSB.aptBmapBloques
+		newSB.PrimerBitLibreArbolDir = newSB.AptBmapArbolDirectorio
+		newSB.PrimerBitLibreDetalleDir = newSB.AptBmapDetalleDirectorio
+		newSB.PrimerBitLibreTablaInodo = newSB.AptBmapTablaInodo
+		newSB.PrimerBitLibreBloques = newSB.AptBmapBloques
 		//--- Numero Magico -------------------------------------------------------------
-		newSB.numeroMagico = 201503442
+		newSB.NumeroMagico = 201503442
 		//--- Escribir SB en Disco ------------------------------------------------------
 		WriteSuperBoot(mpartition.Path, newSB, partition.PartStart, sStrc.sizeSB)
+		//--- Escritura de la Copia de SB -----------------------------------------------
+		WriteSuperBoot(mpartition.Path, newSB, cpd, sStrc.sizeSB)
 	} else {
 		fmt.Println("[!] La particion", idp, " no se encuentra montada...")
 	}
@@ -195,24 +199,40 @@ func WriteSuperBoot(path string, sboot SuperBoot, position int64, size int64) {
 }
 
 // ReadSuperBoot : recupera el superboot de la particion
-func ReadSuperBoot(path string) SuperBoot {
+func ReadSuperBoot(path string, position int64) SuperBoot {
 	file, err := os.Open(path)
-	defer file.Close()
 	if err != nil {
 		log.Println(err)
 	}
-	// Se declara MBR contenedor
-	recSb := SuperBoot{}
-	// Se obtiene el tamaño del MBR
-	var sizeSb int64 = int64(binary.Size(recSb))
-	// Lectura los bytes determinados por mbrSize
-	data := readBytes(file, sizeSb)
+	defer file.Close()
+	// Posicion del puntero
+	//currentPosition, err := file.Seek(position, 1)
+	file.Seek(position, 1)
+	//fmt.Println("Posicion 'Seek' ReadEbr: ", currentPosition)
+	// Se declara SB contenedor
+	recSB := SuperBoot{}
+	// Se obtiene el tamaño del EBR
+	var sizeSB int64 = int64(binary.Size(recSB))
+	// Lectura los bytes determinados por ebrSize
+	data := readBytes(file, sizeSB)
 	// Convierte data en un buffer, necesario para decodificar binario
 	buffer := bytes.NewBuffer(data)
 	// Se decodifica y guarda en recMbr
-	err = binary.Read(buffer, binary.BigEndian, &recSb)
+	err = binary.Read(buffer, binary.BigEndian, &recSB)
 	if err != nil {
 		log.Fatal("[!] Fallo la lectura del Super Boot", err)
+	} else {
+		fmt.Println("[ SuperBoot leido exitosamente ]")
 	}
-	return recSb
+	return recSB
+}
+
+// PrintSuperBoot : imprime el contenido del SB
+func PrintSuperBoot(path string, position int64) {
+	sb := ReadSuperBoot(path, position)
+	fmt.Println("Nombre HD", string(sb.NombreHd[:]))
+	fmt.Println("ArbolesVirtualesLibres", sb.ArbolesVirtualesLibres)
+	fmt.Println("DetallesDirectorioLibres", sb.DetallesDirectorioLibres)
+	fmt.Println("InodosLibres", sb.InodosLibres)
+	fmt.Println("ArbolesVirtualesLibres", sb.BloquesLibres)
 }
