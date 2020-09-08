@@ -40,7 +40,7 @@ type ArbolVirtualDir struct {
 	NombreDirectorio     [16]byte
 	AptArregloSubDir     [6]int64
 	AptDetalleDirectorio int64
-	AptArbolVirtualDir   int64
+	AptIndirecto         int64
 	AvdPropietario       [10]byte // Id del usuario propietario
 	AvdGID               [10]byte // Id del grupo al que pertenece el usuario creador
 	AvdPermisos          int64    // Codigo con el numero de permiso (777)
@@ -48,35 +48,25 @@ type ArbolVirtualDir struct {
 
 //DetalleDirectorio : son los i-nodos
 type DetalleDirectorio struct {
-	FileName1           [16]byte
-	ApInodo1            int64
-	FechaCreacion1      Time
-	FechaModifiacion1   Time
-	FileName2           [16]byte
-	ApInodo2            int64
-	FechaCreacion2      Time
-	FechaModifiacion2   Time
-	FileName3           [16]byte
-	ApInodo3            int64
-	FechaCreacion3      Time
-	FechaModifiacion3   Time
-	FileName4           [16]byte
-	ApInodo4            int64
-	FechaCreacion4      Time
-	FechaModifiacion4   Time
-	FileName5           [16]byte
-	ApInodo5            int64
-	FechaCreacion5      Time
-	FechaModifiacion5   Time
+	InfoFile            [5]InfoArchivo
 	ApDetalleDirectorio int64 //Apuntador al siguiente detalle-directorio
+}
+
+// InfoArchivo : almacena la información del archivo
+type InfoArchivo struct {
+	FileName         [16]byte
+	ApInodo          int64
+	FechaCreacion    Time
+	FechaModifiacion Time
 }
 
 //TablaInodo : para le manejo de archivos de directorio
 type TablaInodo struct {
-	ConteoInodo          int64
+	NumeroInodo          int64
 	SizeArchivo          int64
 	CantBloquesAsignados int64
-	ApIndirecto          int64
+	AptBloques           [4]int64
+	AptIndirecto         int64
 	IDPropietario        [10]byte
 	IDUGrupo             [10]byte
 	IPermisos            int64
