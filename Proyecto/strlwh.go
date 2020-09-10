@@ -85,3 +85,9 @@ type Log struct {
 	Contenido     [50]byte
 	Fecha         Time
 }
+
+// UserActive : Usuario logueado
+type UserActive struct {
+	name     [10]byte
+	password [10]byte
+}

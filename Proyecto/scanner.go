@@ -159,7 +159,11 @@ func getIDType(token string) string {
 		"mount",
 		"unmount",
 		"rep",
-		"mkfs":
+		"mkfs",
+		"login",
+		"logout",
+		"mkdir",
+		"mkfile":
 		return "comando"
 	}
 	return "id"

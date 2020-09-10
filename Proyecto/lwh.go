@@ -88,7 +88,6 @@ func MakeFileSystem(idp string, typef byte) {
 		}
 		// Current Position Disk Partition
 		var cpd int64
-		// Obtener el nombre del disco ¿?
 		// Se obtiene el tamaño de las estructuras y la cantidad (#Estructuras)
 		sStrc, cStrc := GetNumberOfStructures(partition.PartSize)
 		// Se creará el Super Boot
@@ -107,8 +106,8 @@ func MakeFileSystem(idp string, typef byte) {
 		// Cantidad de estructuras ocupadas...
 		newSB.ArbolesVirtualesLibres = cStrc - 1
 		newSB.DetallesDirectorioLibres = cStrc - 1
-		newSB.InodosLibres = cStrc - 1
-		newSB.BloquesLibres = cStrc - 2 // Por los dos bloques del archivo user.txt
+		newSB.InodosLibres = (cStrc * 5) - 1
+		newSB.BloquesLibres = (cStrc * 20) - 2 // Por los dos bloques del archivo user.txt
 		// Inicio BMap AVD = Inicio_Particion + SizeSB
 		cpd = partition.PartStart + sStrc.sizeSB
 		newSB.AptBmapArbolDirectorio = cpd
@@ -161,7 +160,7 @@ func MakeFileSystem(idp string, typef byte) {
 		copy(avdRoot.AvdPropietario[:], "root")
 		copy(avdRoot.AvdGID[:], "root")
 		avdRoot.AvdPermisos = 777
-		avdRoot.AptDetalleDirectorio = newSB.AptDetalleDirectorio
+		avdRoot.AptDetalleDirectorio = 1
 		WriteAVD(mpartition.Path, avdRoot, newSB.AptArbolDirectorio)
 		//--- (2) Crear un Detalle de Directorio ----------------------------------------
 		detalleDir := DetalleDirectorio{}
@@ -169,7 +168,7 @@ func MakeFileSystem(idp string, typef byte) {
 		archivoInf.FechaCreacion = getCurrentTime()
 		archivoInf.FechaModifiacion = getCurrentTime()
 		copy(archivoInf.FileName[:], "user.txt")
-		archivoInf.ApInodo = newSB.AptTablaInodo
+		archivoInf.ApInodo = 1
 		detalleDir.InfoFile[0] = archivoInf
 		WriteDetalleDir(mpartition.Path, detalleDir, newSB.AptDetalleDirectorio)
 		//--- (3) Crear una Tabla de Inodo ----------------------------------------------
@@ -178,8 +177,8 @@ func MakeFileSystem(idp string, typef byte) {
 		tbInodo.NumeroInodo = 1 // Primer Inodo creado
 		tbInodo.SizeArchivo = int64(len(strAux))
 		tbInodo.CantBloquesAsignados = 2
-		posBloque1 := newSB.AptBloques
-		posBloque2 := posBloque1 + newSB.TamStrcBloque
+		posBloque1 := int64(1)
+		posBloque2 := int64(2)
 		tbInodo.AptBloques[0] = posBloque1
 		tbInodo.AptBloques[1] = posBloque2
 		copy(tbInodo.IDPropietario[:], "root")
@@ -189,16 +188,16 @@ func MakeFileSystem(idp string, typef byte) {
 		//--- (4) Creación de los Bloques de datos --------------------------------------
 		bloque1 := BloqueDeDatos{}
 		copy(bloque1.Data[:], strAux[0:25])
-		WriteBloqueD(mpartition.Path, bloque1, posBloque1)
+		WriteBloqueD(mpartition.Path, bloque1, newSB.AptBloques)
 		bloque2 := BloqueDeDatos{}
 		copy(bloque2.Data[:], strAux[25:len(strAux)])
-		WriteBloqueD(mpartition.Path, bloque2, posBloque2)
+		WriteBloqueD(mpartition.Path, bloque2, newSB.AptBloques+newSB.TamStrcBloque)
 		//--- (5) Escribir en BitMap ----------------------------------------------------
-		auxBytes := []byte{'$'}
+		auxBytes := []byte{1}
 		WriteBitMap(mpartition.Path, auxBytes, newSB.AptBmapArbolDirectorio)
 		WriteBitMap(mpartition.Path, auxBytes, newSB.AptBmapDetalleDirectorio)
 		WriteBitMap(mpartition.Path, auxBytes, newSB.AptBmapTablaInodo)
-		auxBytes = append(auxBytes, '$')
+		auxBytes = append(auxBytes, 1)
 		WriteBitMap(mpartition.Path, auxBytes, newSB.AptBmapBloques)
 	} else {
 		fmt.Println("[!] La particion", idp, " no se encuentra montada...")
@@ -287,6 +286,13 @@ func PrintSuperBoot(path string, position int64) {
 	fmt.Println("DetallesDirectorioLibres", sb.DetallesDirectorioLibres)
 	fmt.Println("InodosLibres", sb.InodosLibres)
 	fmt.Println("ArbolesVirtualesLibres", sb.BloquesLibres)
+}
+
+//--- LOGIN & LOGOUT -------------------------------------------------------------------------
+
+// Login : inicio de sesión del usuario
+func Login(cmd CommandS) {
+
 }
 
 //--- FUNCIONES DE ESCRITURA DE ESTRUCTURAS --------------------------------------------------

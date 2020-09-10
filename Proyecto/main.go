@@ -81,6 +81,7 @@ type Mounted struct {
 }
 
 var sliceMP []Mounted
+var userlog UserActive
 
 func main() {
 	var comando string = ""
@@ -138,9 +139,10 @@ func execCommands(cmds []Token) {
 					fmt.Println("Path: ", path)
 					e := os.Remove(path)
 					if e != nil {
-						log.Fatal("[!~RMDIKS] ", e)
+						fmt.Println("[!~RMDIKS] El disco no existe...")
+					} else {
+						fmt.Println("*** El disco ha sido eliminado exitosamente ***")
 					}
-					fmt.Println("*** El disco ha sido eliminado exitosamente ***")
 					fmt.Println("================================================================")
 				} else {
 					fmt.Println("[!~RMDISK] Error con el parametro del comando.")
@@ -216,6 +218,21 @@ func execCommands(cmds []Token) {
 				}
 				x = x - 1
 				Mkfs(cmd)
+			case "login":
+				x = x + 1
+				cmd := CommandS{"login", make([]Parameter, 0, 0)}
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+					//fmt.Println(">>> [", x, "]", cmds[x].value, "[", strconv.Itoa(x+1), "]", cmds[x+1].value)
+					cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+					x = x + 2
+					if x >= cmdsLen {
+						break
+					}
+				}
+				x = x - 1
+				fmt.Println(cmd)
+			case "logout":
+				fmt.Println("logout")
 			}
 		case "comentario":
 			fmt.Println(cmds[x].value)
@@ -1251,7 +1268,7 @@ func RemoveMountedPartition(s []Mounted, index int) []Mounted {
 	return append(s[:index], s[index+1:]...)
 }
 
-//MakeRep : valida
+//MakeRep : valida que los nombres de los reportes
 func MakeRep(cmd CommandS) {
 	id := ""
 	path := ""
@@ -1296,8 +1313,15 @@ func MakeRep(cmd CommandS) {
 		case "disk":
 			DiskReport(path, mbr, cm.Path)
 		case "sb":
-			//fmt.Println("Reporte de SuperBoot")
 			SuperBootReport(path, cm)
+		case "bm_arbdir":
+			BitMapReport(path, cm, 1)
+		case "bm_detdir":
+			BitMapReport(path, cm, 2)
+		case "bm_inode":
+			BitMapReport(path, cm, 3)
+		case "bm_block":
+			BitMapReport(path, cm, 4)
 		default:
 			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
 		}

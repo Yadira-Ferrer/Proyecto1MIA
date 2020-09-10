@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -37,7 +39,7 @@ func MbrReport(path string, mbr MBR) {
 	}
 	cdot += "</table>>];}"
 	// Se escribirá el archivo dot
-	state := WriteDotFile(p, n, cdot)
+	state := WriteFile(p, n, "dot", cdot)
 	if state {
 		fmt.Println("> DOT escrito exitosamente...")
 		outType := "-T" + e
@@ -74,7 +76,7 @@ func DiskReport(path string, mbr MBR, dskpath string) {
 		}
 	}
 	cdot += "</TR>\n</TABLE>\n>, ];\n}"
-	state := WriteDotFile(p, n, cdot)
+	state := WriteFile(p, n, "dot", cdot)
 	if state {
 		fmt.Println("> DOT escrito exitosamente...")
 		outType := "-T" + e
@@ -126,7 +128,7 @@ func SuperBootReport(path string, mp Mounted) {
 	// Finaliza la escritura de atributos SB
 	cDot += "</table>\n>];}"
 	// Se escribirá el archivo dot
-	state := WriteDotFile(p, n, cDot)
+	state := WriteFile(p, n, "dot", cDot)
 	if state {
 		fmt.Println("> DOT escrito exitosamente...")
 		outType := "-T" + e
@@ -134,34 +136,6 @@ func SuperBootReport(path string, mp Mounted) {
 		pathRep := path
 		DotGenerator(outType, pathDot, pathRep)
 	}
-}
-
-//WriteDotFile escribe el archivo .dot
-func WriteDotFile(path string, name string, contenido string) bool {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.MkdirAll(path, os.ModePerm)
-		fmt.Println("Se ha creado el directorio: ", path)
-	}
-	f, err := os.Create(path + name + ".dot")
-	if err != nil {
-		fmt.Println("[!] Error al crear archivo Dot.")
-		fmt.Println(err)
-		return false
-	}
-	_, errw := f.WriteString(contenido)
-	if err != nil {
-		fmt.Println("[!] Error al escribir archivo Dot.")
-		fmt.Println(errw)
-		f.Close()
-		return false
-	}
-	//fmt.Println(l, "bytes written successfully")
-	err = f.Close()
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	return true
 }
 
 //SeparatePath separa el path, el nombre y la extension
@@ -255,4 +229,116 @@ func DotGenerator(outType string, pathDot string, pathRep string) {
 		fmt.Println("*** Reporte generado con exito ***")
 		fmt.Println(out.String())
 	}
+}
+
+//--- REPORTES DE BITMAPS ---------------------------------------------------------------
+
+// BitMapReport : genera los reportes de bitmap
+func BitMapReport(path string, mp Mounted, tipo int) {
+	partition := mp.Part
+	contBMap := ""
+	sb := ReadSuperBoot(mp.Path, partition.PartStart)
+	t := getCurrentTime()
+	st := GetDateAsString(t)
+	position := int64(0)
+	size := int64(0)
+	switch tipo {
+	case 1: //BitMap de Arbol de directorio
+		contBMap += "Reporte BitMap Arbol de Directorios\nGenerado: " + st + "\n\n"
+		position = sb.AptBmapArbolDirectorio
+		size = sb.AptArbolDirectorio - position
+	case 2: //BitMap de Detalle Directorio
+		contBMap += "Reporte BitMap Detalle Directorio\nGenerado: " + st + "\n\n"
+		position = sb.AptBmapDetalleDirectorio
+		size = sb.AptDetalleDirectorio - position
+	case 3: //BitMap de Tabla de Inodo
+		contBMap += "Reporte BitMap Tabla de Inodos\nGenerado: " + st + "\n\n"
+		position = sb.AptBmapTablaInodo
+		size = sb.AptTablaInodo - position
+	case 4: //BitMap de Bloque de Datos
+		contBMap += "Reporte BitMap Detalle Directorios\nGenerado: " + st + "\n\n"
+		position = sb.AptBmapBloques
+		size = sb.AptBloques - position
+	default:
+		fmt.Println("[!] Codigo de reporte de BitMap incorrecto...")
+		return
+	}
+	fmt.Println("[ I:", position, "Sz:", size, "]")
+	stateBmap, bmap := GetByteArray(mp.Path, size, position)
+	// Si todo sale bien, se recorre el arreglo
+	if stateBmap {
+		contador := 1
+		for _, b := range bmap {
+			if contador == 50 {
+				contBMap += "\n"
+				contador = 1
+			}
+			if b == 1 {
+				contBMap += "1"
+				contador++
+				continue
+			}
+			contBMap += "0"
+			contador++
+		}
+		// Escribe el archivo con la cadena de Bits
+		p, n, e := SeparatePath(path)
+		state := WriteFile(p, n, e, contBMap)
+		if state {
+			fmt.Println("*** Reporte BitMap escrito exitosamente ***")
+		} else {
+			fmt.Println("[!] Error al escribir Reporte BitMap...")
+		}
+	}
+}
+
+//WriteFile escribe un archivo
+func WriteFile(path string, name string, ext string, contenido string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.MkdirAll(path, os.ModePerm)
+		fmt.Println("Se ha creado el directorio: ", path)
+	}
+	f, err := os.Create(path + name + "." + ext)
+	if err != nil {
+		fmt.Println("[!] Error al crear archivo.")
+		fmt.Println(err)
+		return false
+	}
+	_, errw := f.WriteString(contenido)
+	if err != nil {
+		fmt.Println("[!] Error al escribir archivo.")
+		fmt.Println(errw)
+		f.Close()
+		return false
+	}
+	err = f.Close()
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	return true
+}
+
+//GetByteArray : obtiene un arreglo de Bytes
+func GetByteArray(diskPath string, size int64, position int64) (bool, []byte) {
+	// Abrir el Disco...
+	file, err := os.Open(diskPath)
+	if err != nil {
+		log.Println(err)
+	}
+	defer file.Close()
+	// Posicion del disco
+	file.Seek(position, 1)
+	bmap := make([]byte, size)
+	data := readBytes(file, size)
+	buffer := bytes.NewBuffer(data)
+	// Se decodifica y se guarda
+	err = binary.Read(buffer, binary.BigEndian, &bmap)
+	if err != nil {
+		log.Fatal("[!] Fallo la lectura de BitMap", err)
+	} else {
+		fmt.Println("[ BitMap leído exitosamente ]")
+		return true, bmap
+	}
+	return false, bmap
 }
