@@ -84,7 +84,17 @@ var sliceMP []Mounted
 var userlog UserActive
 
 func main() {
-	var comando string = ""
+	avdUsac := ReadAVD("/home/yadira/Fase2/Disco5M.dsk", 1645)
+	fmt.Println("Directorio:", string(avdUsac.NombreDirectorio[:]))
+	for i, aptr := range avdUsac.AptArregloSubDir {
+		fmt.Println("> Aptr[", i, "]:", aptr)
+	}
+	fmt.Println("> Indirecto:", avdUsac.AptIndirecto)
+	avdInd := ReadAVD("/home/yadira/Fase2/Disco5M.dsk", 3205)
+	fmt.Println("Directorio I:", string(avdInd.NombreDirectorio[:]))
+	fmt.Println("> Aptr[0]:", avdInd.AptArregloSubDir[0])
+
+	/* var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
 	sliceMP = make([]Mounted, 0)
@@ -99,7 +109,7 @@ func main() {
 		arrayCmd := analizar(comando)
 		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
-	}
+	} */
 	//printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
 }
 
@@ -218,6 +228,23 @@ func execCommands(cmds []Token) {
 				}
 				x = x - 1
 				Mkfs(cmd)
+			case "mkdir":
+				x = x + 1
+				cmd := CommandS{"mkdir", make([]Parameter, 0, 0)}
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+					if cmds[x].name == "parametro" && cmds[x].value == "p" {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x].value})
+						x = x + 1
+					} else {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+						x = x + 2
+					}
+					if x >= cmdsLen {
+						break
+					}
+				}
+				x = x - 1
+				Mkdir(cmd)
 			case "login":
 				x = x + 1
 				cmd := CommandS{"login", make([]Parameter, 0, 0)}

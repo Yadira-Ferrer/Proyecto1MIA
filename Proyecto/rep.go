@@ -175,7 +175,7 @@ func SeparatePath(path string) (string, string, string) {
 func GetString(b [16]byte) string {
 	var str string
 	for i := 0; i < 16; i++ {
-		if unicode.IsLetter(rune(b[i])) || unicode.IsDigit(rune(b[i])) || unicode.IsSymbol(rune(b[i])) {
+		if unicode.IsLetter(rune(b[i])) || unicode.IsDigit(rune(b[i])) || unicode.IsSymbol(rune(b[i])) || b[i] == '/' || b[i] == '_' {
 			str += string(b[i])
 			continue
 		}
@@ -226,8 +226,9 @@ func DotGenerator(outType string, pathDot string, pathRep string) {
 	prc.Wait()
 
 	if prc.ProcessState.Success() {
-		fmt.Println("*** Reporte generado con exito ***")
-		fmt.Println(out.String())
+		fmt.Println("*** Reporte generado con exito. ***")
+	} else {
+		fmt.Println("[!] Error al compilar .dot ***")
 	}
 }
 

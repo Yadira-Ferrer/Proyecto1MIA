@@ -177,10 +177,8 @@ func MakeFileSystem(idp string, typef byte) {
 		tbInodo.NumeroInodo = 1 // Primer Inodo creado
 		tbInodo.SizeArchivo = int64(len(strAux))
 		tbInodo.CantBloquesAsignados = 2
-		posBloque1 := int64(1)
-		posBloque2 := int64(2)
-		tbInodo.AptBloques[0] = posBloque1
-		tbInodo.AptBloques[1] = posBloque2
+		tbInodo.AptBloques[0] = int64(1)
+		tbInodo.AptBloques[1] = int64(2)
 		copy(tbInodo.IDPropietario[:], "root")
 		copy(tbInodo.IDUGrupo[:], "root")
 		tbInodo.IPermisos = 777
@@ -288,14 +286,278 @@ func PrintSuperBoot(path string, position int64) {
 	fmt.Println("ArbolesVirtualesLibres", sb.BloquesLibres)
 }
 
-//--- LOGIN & LOGOUT -------------------------------------------------------------------------
+//--- LOGIN & LOGOUT --------------------------------------------------------------------
 
-// Login : inicio de sesión del usuario
-func Login(cmd CommandS) {
+//--- MAKE DIRECTORY --------------------------------------------------------------------
 
+// Mkdir : valida los parametros del comando MakeDir
+func Mkdir(cmd CommandS) {
+	isP := false
+	idp := ""
+	dirs := ""
+	cm := Mounted{}
+	for _, param := range cmd.Params {
+		switch strings.ToLower(param.Name) {
+		case "id":
+			idp = delQuotationMark(param.Value)
+		case "path":
+			if strings.Contains(param.Value, "\"") {
+				dirs = strings.Replace(param.Value, "\"", "", -1)
+				continue
+			}
+			dirs = param.Value
+		case "p":
+			isP = true
+		}
+	}
+	// Creación de Directorios
+	fmt.Println("\n===== CREAR DIRECTORIOS ========================================")
+	fmt.Println("- Id Particion:", idp)
+	fmt.Println("- Dirs:", dirs)
+	fmt.Println("- P:", isP)
+	// Obtener la particion
+	flgfound := false
+	for _, mp := range sliceMP {
+		idm := "vd" + string(mp.Letter) + strconv.FormatInt(mp.Number, 10)
+		if idp == idm {
+			flgfound = true
+			cm = mp
+			break
+		}
+	}
+	// Si la partición se encuentra montada
+	if flgfound {
+		sb := ReadSuperBoot(cm.Path, cm.Part.PartStart)
+		//fmt.Println(cm.Path)
+		// Se elimina el primer '/'
+		//dirs = dirs[1:len(dirs)]
+		sliceDirs := GetDirsNames(dirs[1:len(dirs)])
+		// Obtener el directorio "/"
+		cDir := ReadAVD(cm.Path, sb.AptArbolDirectorio)
+		// Empezar a buscar si existen los directorios
+		auxDir := cDir
+		posAuxDir := sb.AptArbolDirectorio
+		for x, name := range sliceDirs {
+			posAuxDir, auxDir = GetSubDir(name, cm.Path, sb, auxDir, posAuxDir)
+			fmt.Println("> Current Dir Name:", string(auxDir.NombreDirectorio[:]))
+			var bname [16]byte
+			copy(bname[:], name)
+			// Si el directorio actual es diferente al directorio que busco -> NO EXISTE...
+			if bname != auxDir.NombreDirectorio {
+				// Me quedo solo con las carpetas que hacen falta crear...
+				sliceDirs = sliceDirs[x:len(sliceDirs)]
+				break
+			}
+		}
+		// Si el nombre de la carpeta es igual a la carpeta a crear YA EXISTE
+		var bname [16]byte
+		copy(bname[:], sliceDirs[0])
+		if bname == auxDir.NombreDirectorio {
+			fmt.Println("[*] El directorio '", dirs, "', ya existe...")
+			fmt.Println("================================================================")
+			return
+		}
+		// Corroborar Directorio Obtenido...
+		fmt.Println("PosAuxDir: ", posAuxDir)
+		fmt.Println("Directorio: ", string(auxDir.NombreDirectorio[:]))
+		// Verificar si será necesario crear un aptIndirecto
+		flgAptInd, indxApt := createAptInd(auxDir.AptArregloSubDir)
+		if flgAptInd {
+			// Se agrega al slice de directorios a crear, el directorio indirecto
+			nameDir := GetString(auxDir.NombreDirectorio)
+			sliceDirs = append([]string{nameDir}, sliceDirs...)
+		}
+		fmt.Println("Dirs a Crear:", sliceDirs)
+		// Recorrer el BitMap hasta encontrar la cantidad de espacios continuos libres
+		cantIndx := int64(len(sliceDirs))
+		posBmap := sb.AptBmapDetalleDirectorio
+		sizeBmap := sb.AptDetalleDirectorio - posBmap
+		indxBm := GetBmPositions(cantIndx, cm.Path, sizeBmap, posBmap, sb.PrimerBitLibreArbolDir)
+		fmt.Println("IndxBmp:", indxBm)
+		fbit := indxBm[0]
+		lbit := indxBm[cantIndx-1]
+		//fmt.Println("FB:", fbit, "LB:", lbit, "IndexApt:", indxApt, "Flag-Ind:", flgAptInd)
+		// ==============================================================================
+		// Si viene el parametro 'p', se crean carpetas recursivas
+		if isP {
+			// Si es necesario crear un aptIndirecto
+			if flgAptInd {
+				// Se actualiza el AptIndirecto de la carpeta Actual
+				auxDir.AptIndirecto = indxBm[0]
+				// Se escribe el Directorio Padre
+				WriteAVD(cm.Path, auxDir, posAuxDir)
+				// Creación del directorio Indirecto
+				dirIndirecto := ArbolVirtualDir{}
+				dirIndirecto.FechaCreacion = getCurrentTime()
+				dirIndirecto.NombreDirectorio = auxDir.NombreDirectorio
+				dirIndirecto.AptArregloSubDir[0] = indxBm[1]
+				copy(dirIndirecto.AvdPropietario[:], "root")
+				copy(dirIndirecto.AvdGID[:], "root")
+				dirIndirecto.AvdPermisos = 664
+				// Actualizo AuxDir y posAuxDir con el nuevo AVD Indirecto
+				position := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (indxBm[0] - 1))
+				auxDir = dirIndirecto
+				// Se escribe el directorio Indirecto
+				WriteAVD(cm.Path, dirIndirecto, position)
+				sliceDirs = sliceDirs[1:len(sliceDirs)]
+				indxBm = indxBm[1:len(indxBm)]
+			} else {
+				// Se actualiza el Apuntador de la carpeta padre hacia la carpeta a crear...
+				auxDir.AptArregloSubDir[indxApt] = indxBm[0]
+				// Se escribe el Directorio Padre
+				WriteAVD(cm.Path, auxDir, posAuxDir)
+			}
+			// Creacion de los directorios especificados...
+			for i, cdn := range sliceDirs {
+				newDir := ArbolVirtualDir{}
+				newDir.FechaCreacion = getCurrentTime()
+				if (i + 1) < len(indxBm) {
+					newDir.AptArregloSubDir[0] = indxBm[i+1]
+				}
+				copy(newDir.NombreDirectorio[:], cdn)
+				copy(newDir.AvdPropietario[:], "root")
+				copy(newDir.AvdGID[:], "root")
+				newDir.AvdPermisos = 664
+				// Se escribe el directorio Indirecto
+				position := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (indxBm[i] - 1))
+				WriteAVD(cm.Path, newDir, position)
+			}
+		} else {
+			if len(sliceDirs) == 1 && flgAptInd == false {
+				// Se actualiza el Apuntador de la carpeta padre hacia la carpeta a crear...
+				auxDir.AptArregloSubDir[indxApt] = indxBm[0]
+				// Se escribe el Directorio Padre
+				WriteAVD(cm.Path, auxDir, posAuxDir)
+				// Se crea el directorio hijo
+				newDir := ArbolVirtualDir{}
+				newDir.FechaCreacion = getCurrentTime()
+				copy(newDir.NombreDirectorio[:], sliceDirs[0])
+				copy(newDir.AvdPropietario[:], "root")
+				copy(newDir.AvdGID[:], "root")
+				newDir.AvdPermisos = 664
+				// Calcular la posicion de escritura
+				position := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (indxBm[0] - 1))
+				// Escribir el Directorio en el disco
+				WriteAVD(cm.Path, newDir, position)
+				// En caso se deba crear un apt Indirecto y el directorio solicitado...
+			} else if len(sliceDirs) == 2 && flgAptInd == true {
+				// Se actualiza el AptIndirecto de la carpeta Actual
+				auxDir.AptIndirecto = indxBm[0]
+				// Se escribe el Directorio Padre
+				WriteAVD(cm.Path, auxDir, posAuxDir)
+				// Se crear el AVD Indirecto
+				dirIndirecto := ArbolVirtualDir{}
+				dirIndirecto.FechaCreacion = getCurrentTime()
+				dirIndirecto.NombreDirectorio = auxDir.NombreDirectorio
+				dirIndirecto.AptArregloSubDir[0] = indxBm[1]
+				copy(dirIndirecto.AvdPropietario[:], "root")
+				copy(dirIndirecto.AvdGID[:], "root")
+				dirIndirecto.AvdPermisos = 664
+				// Se escribe el directorio Indirecto
+				position := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (indxBm[0] - 1))
+				WriteAVD(cm.Path, dirIndirecto, position)
+				// Se crea el directorio especificado
+				newDir := ArbolVirtualDir{}
+				newDir.FechaCreacion = getCurrentTime()
+				copy(newDir.NombreDirectorio[:], sliceDirs[1])
+				copy(newDir.AvdPropietario[:], "root")
+				copy(newDir.AvdGID[:], "root")
+				newDir.AvdPermisos = 664
+				// Se escribe el directorio Especificado
+				position = sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (indxBm[1] - 1))
+				WriteAVD(cm.Path, newDir, position)
+			} else {
+				fmt.Println("[!] Se requiere crear mas de un directorio\n    pero no fue definido el parametro 'p'...")
+				fmt.Println("================================================================")
+				return
+			}
+		}
+		// Escritura del BitMap de Directorios
+		bArray := make([]byte, 0)
+		for int64(len(bArray)) < cantIndx {
+			bArray = append(bArray, 1)
+		}
+		WriteBitMap(cm.Path, bArray, sb.AptBmapArbolDirectorio+(fbit-1))
+		// Actualización de SB
+		sb.CantArbolVirtual = sb.CantArbolVirtual + cantIndx
+		sb.ArbolesVirtualesLibres = sb.ArbolesVirtualesLibres - cantIndx
+		sb.PrimerBitLibreArbolDir = lbit + 1
+		WriteSuperBoot(cm.Path, sb, cm.Part.PartStart)
+	} else {
+		fmt.Println("[!] La particion", idp, " no se encuentra montada...")
+	}
+	fmt.Println("================================================================")
 }
 
-//--- FUNCIONES DE ESCRITURA DE ESTRUCTURAS --------------------------------------------------
+// GetDirsNames : obtiene el nombre de las carpetas a ser creadas...
+func GetDirsNames(dir string) []string {
+	namesDir := strings.Split(dir, "/")
+	return namesDir
+}
+
+// GetSubDir : obtiene el subdirectorio si este existe...
+func GetSubDir(name string, pathdsk string, sb SuperBoot, currentDir ArbolVirtualDir, position int64) (int64, ArbolVirtualDir) {
+	aptSubDirs := currentDir.AptArregloSubDir
+	for _, apt := range aptSubDirs {
+		if apt > 0 {
+			// posicion = Inicio AVD + (sizeAVD * numero_de_estructura)
+			posCurrent := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (apt - 1))
+			auxSubDir := ReadAVD(pathdsk, position)
+			var bname [16]byte
+			copy(bname[:], name)
+			fmt.Println("> NextAVD:", position, " (", apt, ")")
+			if bname == auxSubDir.NombreDirectorio {
+				return posCurrent, auxSubDir
+			}
+		}
+	}
+	// Sino se encontro en los subdirectorios, se busca en el indirecto...
+	// Si existe un apuntador indirecto...
+	aptInd := currentDir.AptIndirecto
+	if aptInd > 0 {
+		posCurrent := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (aptInd - 1))
+		auxSubDir := ReadAVD(pathdsk, position)
+		fmt.Println("> NextAVD:", position, " (", aptInd, ")")
+		return GetSubDir(name, pathdsk, sb, auxSubDir, posCurrent)
+	}
+	return position, currentDir
+}
+
+func createAptInd(aptDir [6]int64) (bool, int64) {
+	for i, apt := range aptDir {
+		if apt == 0 {
+			return false, int64(i)
+		}
+	}
+	return true, -1
+}
+
+// GetBmPositions : obtiene las posiciones del bitmap
+func GetBmPositions(cant int64, pathdsk string, sizeBm int64, posBmap int64, ffree int64) []int64 {
+	fpos := make([]int64, 0)
+	// Recuperar BitMap AVD
+	state, bmap := GetByteArray(pathdsk, sizeBm, posBmap)
+	if state {
+		for i := int64(ffree - 1); i < sizeBm; i++ {
+			for x := int64(0); x < cant; x++ {
+				if bmap[i] == 0 {
+					fpos = append(fpos, (i + 1))
+				} else {
+					fpos = make([]int64, 0)
+				}
+				i++
+			}
+			if int64(len(fpos)) == cant {
+				break
+			}
+		}
+	} else {
+		fmt.Println("[!] Error al leer BitMap...")
+	}
+	return fpos
+}
+
+//--- FUNCIONES DE ESCRITURA DE ESTRUCTURAS ---------------------------------------------
 
 // WriteAVD : escribe avd en disco
 func WriteAVD(path string, avd ArbolVirtualDir, position int64) {
