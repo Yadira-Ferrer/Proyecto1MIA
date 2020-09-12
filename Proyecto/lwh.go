@@ -467,7 +467,7 @@ func Mkdir(cmd CommandS) {
 				position = sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (indxBm[1] - 1))
 				WriteAVD(cm.Path, newDir, position)
 			} else {
-				fmt.Println("[!] Se requiere crear mas de un directorio\n    pero no fue definido el parametro 'p'...")
+				fmt.Println("[!] Se requiere crear mas de un directorio\n    pero no fue definido el parametro '-p'...")
 				fmt.Println("================================================================")
 				return
 			}
@@ -502,7 +502,7 @@ func GetSubDir(name string, pathdsk string, sb SuperBoot, currentDir ArbolVirtua
 		if apt > 0 {
 			// posicion = Inicio AVD + (sizeAVD * numero_de_estructura)
 			posCurrent := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (apt - 1))
-			auxSubDir := ReadAVD(pathdsk, position)
+			auxSubDir := ReadAVD(pathdsk, posCurrent)
 			var bname [16]byte
 			copy(bname[:], name)
 			fmt.Println("> NextAVD:", position, " (", apt, ")")

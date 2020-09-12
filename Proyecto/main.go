@@ -84,17 +84,10 @@ var sliceMP []Mounted
 var userlog UserActive
 
 func main() {
-	avdUsac := ReadAVD("/home/yadira/Fase2/Disco5M.dsk", 1645)
-	fmt.Println("Directorio:", string(avdUsac.NombreDirectorio[:]))
-	for i, aptr := range avdUsac.AptArregloSubDir {
-		fmt.Println("> Aptr[", i, "]:", aptr)
-	}
-	fmt.Println("> Indirecto:", avdUsac.AptIndirecto)
-	avdInd := ReadAVD("/home/yadira/Fase2/Disco5M.dsk", 3205)
-	fmt.Println("Directorio I:", string(avdInd.NombreDirectorio[:]))
-	fmt.Println("> Aptr[0]:", avdInd.AptArregloSubDir[0])
-
-	/* var comando string = ""
+	/* nombre := [16]byte{}
+	copy(nombre[:], "Why Dont We")
+	fmt.Println(GetString(nombre)) */
+	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
 	sliceMP = make([]Mounted, 0)
@@ -109,7 +102,7 @@ func main() {
 		arrayCmd := analizar(comando)
 		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
-	} */
+	}
 	//printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
 }
 
@@ -1349,6 +1342,8 @@ func MakeRep(cmd CommandS) {
 			BitMapReport(path, cm, 3)
 		case "bm_block":
 			BitMapReport(path, cm, 4)
+		case "directorio":
+			DirsReport(path, cm)
 		default:
 			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
 		}

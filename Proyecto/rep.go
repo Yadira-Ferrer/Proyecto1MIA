@@ -175,7 +175,7 @@ func SeparatePath(path string) (string, string, string) {
 func GetString(b [16]byte) string {
 	var str string
 	for i := 0; i < 16; i++ {
-		if unicode.IsLetter(rune(b[i])) || unicode.IsDigit(rune(b[i])) || unicode.IsSymbol(rune(b[i])) || b[i] == '/' || b[i] == '_' {
+		if unicode.IsLetter(rune(b[i])) || unicode.IsDigit(rune(b[i])) || unicode.IsSymbol(rune(b[i])) || b[i] == '/' || b[i] == '_' || b[i] == ' ' {
 			str += string(b[i])
 			continue
 		}
@@ -342,4 +342,103 @@ func GetByteArray(diskPath string, size int64, position int64) (bool, []byte) {
 		return true, bmap
 	}
 	return false, bmap
+}
+
+//--- REPORTE DE DIRECTORIOS ------------------------------------------------------------
+
+// DirsReport : reporte de los direcotorios del sistema
+func DirsReport(path string, pm Mounted) {
+	p, n, e := SeparatePath(path)
+	// Obtener Fecha y Hora actual
+	ct := getCurrentTime()
+	// Recuperar el SuperBoot
+	sb := ReadSuperBoot(pm.Path, pm.Part.PartStart)
+	// Obtener el directorio raíz
+	rootDir := ReadAVD(pm.Path, sb.AptArbolDirectorio)
+	// Generar contenido Dot
+	codir := int64(1)
+	cDot := "digraph {\nedge[arrowhead=vee]\n"
+	cDot += "labelloc=\"t\";\nlabel=<REPORTE DE DIRECTORIOS<BR /><FONT POINT-SIZE=\"10\">Generado:" + GetDateAsString(ct) + "</FONT><BR /><BR />>;"
+	cDot += "d1 [label=<" + GetString(rootDir.NombreDirectorio) + "<BR /><FONT POINT-SIZE=\"6\">" + GetDateAsString(rootDir.FechaCreacion) + "</FONT>> shape=folder style=filled fillcolor=darkgoldenrod1 fontsize=11];\n"
+	// Creo los apuntadores a subdirectorios ...
+	for i, apt := range rootDir.AptArregloSubDir {
+		if apt > 0 {
+			cDot += "aptr" + strconv.Itoa(int(codir)) + "" + strconv.Itoa(int(apt)) + "[label=\"[Apt" + strconv.Itoa(int(i+1)) + "]: " + strconv.Itoa(int(apt)) + "\" fillcolor=white fontcolor=black fontname=\"Helvetica\" shape=plaintext height=0.1 width=0.1 fontsize=8];\n"
+		}
+	}
+	// Apunto la carpeta padre a los subdirectorios
+	for _, apt := range rootDir.AptArregloSubDir {
+		if apt > 0 {
+			cDot += "d" + strconv.Itoa(int(codir)) + "->" + "aptr" + strconv.Itoa(int(codir)) + "" + strconv.Itoa(int(apt)) + " [dir=none]\n"
+		}
+	}
+	for _, apt := range rootDir.AptArregloSubDir {
+		if apt > 0 {
+			position := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (apt - 1))
+			subdir := ReadAVD(pm.Path, position)
+			cDot += CreateDirDot(subdir, codir, apt, pm.Path, sb.TamStrcArbolDirectorio, sb.AptArbolDirectorio)
+		}
+	}
+
+	// Si existe creo el apuntador indirecto
+	if rootDir.AptIndirecto > 0 {
+		cDot += "aptr" + strconv.Itoa(int(codir)) + "" + strconv.Itoa(int(rootDir.AptIndirecto)) + "[label=\"[IND]: " + strconv.Itoa(int(rootDir.AptIndirecto)) + "\" fillcolor=white fontcolor=black fontname=\"Helvetica\" shape=plaintext height=0.1 width=0.1 fontsize=8];\n"
+
+		cDot += "d" + strconv.Itoa(int(codir)) + "->" + "aptr" + strconv.Itoa(int(codir)) + "" + strconv.Itoa(int(rootDir.AptIndirecto)) + " [dir=none]\n"
+
+		// Generar el codigo del directorio indirecto
+		position := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (rootDir.AptIndirecto - 1))
+		subdir := ReadAVD(pm.Path, position)
+		cDot += CreateDirDot(subdir, codir, rootDir.AptIndirecto, pm.Path, sb.TamStrcArbolDirectorio, sb.AptArbolDirectorio)
+	}
+
+	cDot += "}"
+	// Se escribirá el archivo dot
+	state := WriteFile(p, n, "dot", cDot)
+	if state {
+		fmt.Println("> DOT escrito exitosamente...")
+		outType := "-T" + e
+		pathDot := p + n + ".dot"
+		pathRep := path
+		DotGenerator(outType, pathDot, pathRep)
+	}
+}
+
+// CreateDirDot : crea el codigo dot del directorio
+func CreateDirDot(dir ArbolVirtualDir, padre int64, act int64, path string, sizeAVD int64, iniAVD int64) string {
+	cDot := ""
+	cDot += "d" + strconv.Itoa(int(act)) + "[label=<" + GetString(dir.NombreDirectorio) + "<BR /><FONT POINT-SIZE=\"6\">" + GetDateAsString(dir.FechaCreacion) + "</FONT>> shape=folder style=filled fillcolor=darkgoldenrod1 fontsize=11];\n"
+	// Creacion del apuntador padre al hijo
+	cDot += "aptr" + strconv.Itoa(int(padre)) + "" + strconv.Itoa(int(act)) + " -> " + "d" + strconv.Itoa(int(act)) + "\n"
+	// Creo los apuntadores a subdirectorios ...
+	for i, apt := range dir.AptArregloSubDir {
+		if apt > 0 {
+			cDot += "aptr" + strconv.Itoa(int(act)) + "" + strconv.Itoa(int(apt)) + "[label=\"[Apt" + strconv.Itoa(int(i+1)) + "]: " + strconv.Itoa(int(apt)) + "\" fillcolor=white fontcolor=black fontname=\"Helvetica\" shape=plaintext height=0.1 width=0.1 fontsize=8];\n"
+		}
+	}
+	// Apunto la carpeta padre a los subdirectorios
+	for _, apt := range dir.AptArregloSubDir {
+		if apt > 0 {
+			cDot += "d" + strconv.Itoa(int(act)) + "->" + "aptr" + strconv.Itoa(int(act)) + "" + strconv.Itoa(int(apt)) + " [dir=none]\n"
+		}
+	}
+	// Si existe creo el apuntador indirecto
+	if dir.AptIndirecto > 0 {
+		cDot += "aptr" + strconv.Itoa(int(act)) + "" + strconv.Itoa(int(dir.AptIndirecto)) + "[label=\"[IND]: " + strconv.Itoa(int(dir.AptIndirecto)) + "\" fillcolor=white fontcolor=black fontname=\"Helvetica\" shape=plaintext height=0.1 width=0.1 fontsize=8];\n"
+
+		cDot += "d" + strconv.Itoa(int(act)) + "->" + "aptr" + strconv.Itoa(int(act)) + "" + strconv.Itoa(int(dir.AptIndirecto)) + " [dir=none]\n"
+
+		// Generar el codigo del directorio indirecto
+		position := iniAVD + (sizeAVD * (dir.AptIndirecto - 1))
+		subdir := ReadAVD(path, position)
+		cDot += CreateDirDot(subdir, act, dir.AptIndirecto, path, sizeAVD, iniAVD)
+	}
+	for _, apt := range dir.AptArregloSubDir {
+		if apt > 0 {
+			position := iniAVD + (sizeAVD * (apt - 1))
+			subdir := ReadAVD(path, position)
+			cDot += CreateDirDot(subdir, act, apt, path, sizeAVD, iniAVD)
+		}
+	}
+	return cDot
 }

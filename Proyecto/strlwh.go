@@ -43,7 +43,7 @@ type ArbolVirtualDir struct {
 	AptIndirecto         int64
 	AvdPropietario       [10]byte // Id del usuario propietario
 	AvdGID               [10]byte // Id del grupo al que pertenece el usuario creador
-	AvdPermisos          int64    // Codigo con el numero de permiso (777)
+	AvdPermisos          int64    // Codigo con el numero de permiso (664)
 }
 
 //DetalleDirectorio : son los i-nodos
