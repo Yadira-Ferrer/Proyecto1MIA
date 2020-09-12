@@ -52,22 +52,26 @@ func MbrReport(path string, mbr MBR) {
 // DiskReport : genera el reporte del disco
 func DiskReport(path string, mbr MBR, dskpath string) {
 	p, n, e := SeparatePath(path)
-	cdot := "digraph test {\ngraph [ratio=fill];\nnode [label=\"\\N\", fontsize=15, shape=plaintext];\ngraph [bb=\"0,0,352,154\"];\narset [label=<\n<TABLE ALIGN=\"CENTER\">\n<TR>\n<TD>MBR</TD>\n"
+	// Obtener Fecha y Hora actual
+	ct := getCurrentTime()
+	cdot := "digraph test {\ngraph [ratio=fill];\nnode [label=\"\\N\", fontsize=15, shape=plaintext];\n"
+	cdot += "labelloc=\"t\";\nlabel=<REPORTE DE MBR<BR /><FONT POINT-SIZE=\"10\">Generado:" + GetDateAsString(ct) + "</FONT><BR /><BR />>;\n"
+	cdot += "graph [bb=\"0,0,352,154\"];\narset [label=<\n<TABLE ALIGN=\"CENTER\">\n<TR>\n<TD>MBR</TD>\n"
 	for _, p := range mbr.MbrPartitions {
 		if p.PartStatus == 0 {
 			cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Libre</TD></TR>\n</TABLE>\n</TD>\n"
 		} else {
 			if p.PartType == 'p' {
-				cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Primaria<br/>" + GetString(p.PartName) + "</TD></TR>\n</TABLE>\n</TD>\n"
+				cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Primaria<br/>" + GetString(p.PartName) + "<br/>" + strconv.FormatInt(p.PartSize, 10) + " Bytes</TD></TR>\n</TABLE>\n</TD>\n"
 			} else if p.PartType == 'e' {
-				cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Extendida<br/>" + GetString(p.PartName) + "</TD></TR>\n<TR>\n<TD>\n<TABLE BORDER=\"1\">\n<TR>\n"
+				cdot += "<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Extendida<br/>" + GetString(p.PartName) + "<br/>" + strconv.FormatInt(p.PartSize, 10) + " Bytes</TD></TR>\n<TR>\n<TD>\n<TABLE BORDER=\"1\">\n<TR>\n"
 				position := p.PartStart
 				for true {
 					ebr := readEBR(dskpath, position)
 					if ebr.PartStatus == 0 {
 						break
 					} else {
-						cdot += "<TD>EBR</TD>\n<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Logica<br/>" + GetString(ebr.PartName) + "</TD></TR>\n</TABLE>\n</TD>\n"
+						cdot += "<TD>EBR</TD>\n<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Logica<br/>" + GetString(ebr.PartName) + "<br/>" + strconv.FormatInt(p.PartSize, 10) + " Bytes</TD></TR>\n</TABLE>\n</TD>\n"
 						position = ebr.PartNext
 					}
 				}
@@ -75,7 +79,7 @@ func DiskReport(path string, mbr MBR, dskpath string) {
 			}
 		}
 	}
-	cdot += "</TR>\n</TABLE>\n>, ];\n}"
+	cdot += "</TR>\n</TABLE>\n>, fontsize=10];\n}"
 	state := WriteFile(p, n, "dot", cdot)
 	if state {
 		fmt.Println("> DOT escrito exitosamente...")
@@ -357,7 +361,7 @@ func DirsReport(path string, pm Mounted) {
 	// Generar contenido Dot
 	codir := int64(1)
 	cDot := "digraph {\nedge[arrowhead=vee]\n"
-	cDot += "labelloc=\"t\";\nlabel=<REPORTE DE DIRECTORIOS<BR /><FONT POINT-SIZE=\"10\">Generado:" + GetDateAsString(ct) + "</FONT><BR /><BR />>;"
+	cDot += "labelloc=\"t\";\nlabel=<REPORTE DE DIRECTORIOS<BR /><FONT POINT-SIZE=\"10\">Generado:" + GetDateAsString(ct) + "</FONT><BR /><BR />>;\n"
 	cDot += "d1 [label=<" + GetString(rootDir.NombreDirectorio) + "<BR /><FONT POINT-SIZE=\"6\">" + GetDateAsString(rootDir.FechaCreacion) + "</FONT>> shape=folder style=filled fillcolor=darkgoldenrod1 fontsize=11];\n"
 	// Creo los apuntadores a subdirectorios ...
 	for i, apt := range rootDir.AptArregloSubDir {
