@@ -268,19 +268,18 @@ func BitMapReport(path string, mp Mounted, tipo int) {
 	stateBmap, bmap := GetByteArray(mp.Path, size, position)
 	// Si todo sale bien, se recorre el arreglo
 	if stateBmap {
-		contador := 1
-		for _, b := range bmap {
-			if contador == 50 {
+		for i, b := range bmap {
+			if (i % 5) == 0 {
+				contBMap += " "
+			}
+			if (i % 50) == 0 {
 				contBMap += "\n"
-				contador = 1
 			}
 			if b == 1 {
 				contBMap += "1"
-				contador++
 				continue
 			}
 			contBMap += "0"
-			contador++
 		}
 		// Escribe el archivo con la cadena de Bits
 		p, n, e := SeparatePath(path)
