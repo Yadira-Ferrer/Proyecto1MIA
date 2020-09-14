@@ -1226,6 +1226,13 @@ func MountPartition(cmd CommandS) {
 						mount.TMount = getCurrentTime()
 						sliceMP = append(sliceMP, mount)
 						fmt.Println("*** Partición Montada ***")
+
+						sb := ReadSuperBoot(path, mount.Part.PartStart)
+						if sb != (SuperBoot{}) {
+							sb.ConteoMontajes = sb.ConteoMontajes + 1
+							sb.FechaUltimoMontaje = mount.TMount
+							WriteSuperBoot(path, sb, mount.Part.PartStart)
+						}
 					} else {
 						fmt.Println("[*] La partición '", name, "' ya se encuentra montada...")
 					}

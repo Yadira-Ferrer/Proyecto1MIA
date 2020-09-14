@@ -241,7 +241,7 @@ func WriteSuperBoot(path string, sboot SuperBoot, position int64) {
 	binary.Write(&bin, binary.BigEndian, sb)
 	state := writeBytes(file, bin.Bytes())
 	if state {
-		fmt.Println("*** Se ha escrito SuperBoot  ***")
+		//fmt.Println("*** Se ha escrito SuperBoot  ***")
 	} else {
 		fmt.Println("[!] Ha ocurrido un error al escribir el SuperBoot.")
 	}
@@ -271,7 +271,7 @@ func ReadSuperBoot(path string, position int64) SuperBoot {
 	if err != nil {
 		log.Fatal("[!] Fallo la lectura del Super Boot", err)
 	} else {
-		fmt.Println("[ SuperBoot leido exitosamente ]")
+		//fmt.Println("[ SuperBoot leido exitosamente ]")
 	}
 	return recSB
 }
@@ -383,7 +383,7 @@ func MakeDirs(cm Mounted, dirs string, isP bool) int {
 	fmt.Println("IndxBmp:", indxBm)
 	fbit := indxBm[0]
 	lbit := indxBm[cantIndx-1]
-	fmt.Println("FB:", fbit, "LB:", lbit, "IndexApt:", indxApt, "Flag-Ind:", flgAptInd, "CantIndx:", cantIndx)
+	//fmt.Println("FB:", fbit, "LB:", lbit, "IndexApt:", indxApt, "Flag-Ind:", flgAptInd, "CantIndx:", cantIndx)
 	// ==============================================================================
 	// Si viene el parametro 'p', se crean carpetas recursivas
 	if isP {
@@ -508,7 +508,7 @@ func GetSubDir(name string, pathdsk string, sb SuperBoot, currentDir ArbolVirtua
 			auxSubDir := ReadAVD(pathdsk, posCurrent)
 			var bname [16]byte
 			copy(bname[:], name)
-			fmt.Println("> NextAVD:", position, " (", apt, ")")
+			//fmt.Println("> NextAVD:", position, " (", apt, ")")
 			if bname == auxSubDir.NombreDirectorio {
 				return posCurrent, auxSubDir
 			}
@@ -520,7 +520,7 @@ func GetSubDir(name string, pathdsk string, sb SuperBoot, currentDir ArbolVirtua
 	if aptInd > 0 {
 		posCurrent := sb.AptArbolDirectorio + (sb.TamStrcArbolDirectorio * (aptInd - 1))
 		auxSubDir := ReadAVD(pathdsk, position)
-		fmt.Println("> NextAVD:", position, " (", aptInd, ")")
+		//fmt.Println("> NextAVD:", position, " (", aptInd, ")")
 		return GetSubDir(name, pathdsk, sb, auxSubDir, posCurrent)
 	}
 	return position, currentDir
@@ -989,7 +989,7 @@ func WriteAVD(path string, avd ArbolVirtualDir, position int64) {
 	binary.Write(&bin, binary.BigEndian, avdW)
 	state := writeBytes(file, bin.Bytes())
 	if state {
-		fmt.Println("*** Se ha escrito AVD  ***")
+		//fmt.Println("*** Se ha escrito AVD  ***")
 	} else {
 		fmt.Println("[!] Ha ocurrido un error al escribir el AVD.")
 	}
@@ -1040,7 +1040,7 @@ func WriteDetalleDir(path string, ddir DetalleDirectorio, position int64) {
 	binary.Write(&bin, binary.BigEndian, rec)
 	state := writeBytes(file, bin.Bytes())
 	if state {
-		fmt.Println("*** Se ha escrito Detalle Directorio  ***")
+		//fmt.Println("*** Se ha escrito Detalle Directorio  ***")
 	} else {
 		fmt.Println("[!] Ha ocurrido un error al escribir el Detalle Directorio.")
 	}
@@ -1070,7 +1070,7 @@ func ReadDetalleDir(path string, position int64) DetalleDirectorio {
 	if err != nil {
 		log.Fatal("[!] Fallo la lectura del Detalle Directorio", err)
 	} else {
-		fmt.Println("[ Detalle Directorio leido exitosamente ]")
+		//fmt.Println("[ Detalle Directorio leido exitosamente ]")
 	}
 	return rec
 }
@@ -1091,7 +1091,7 @@ func WriteTInodo(path string, tinodo TablaInodo, position int64) {
 	binary.Write(&bin, binary.BigEndian, rec)
 	state := writeBytes(file, bin.Bytes())
 	if state {
-		fmt.Println("*** Se ha escrito Tabla Inodo  ***")
+		//fmt.Println("*** Se ha escrito Tabla Inodo  ***")
 	} else {
 		fmt.Println("[!] Ha ocurrido un error al escribir Tabla Inodo.")
 	}
@@ -1142,7 +1142,7 @@ func WriteBloqueD(path string, bd BloqueDeDatos, position int64) {
 	binary.Write(&bin, binary.BigEndian, rec)
 	state := writeBytes(file, bin.Bytes())
 	if state {
-		fmt.Println("*** Se ha escrito Bloque de Datos  ***")
+		//fmt.Println("*** Se ha escrito Bloque de Datos  ***")
 	} else {
 		fmt.Println("[!] Ha ocurrido un error al Bloque de Datos.")
 	}
@@ -1193,7 +1193,7 @@ func WriteBitMap(path string, btes []byte, position int64) {
 	binary.Write(&bin, binary.BigEndian, bts)
 	state := writeBytes(file, bin.Bytes())
 	if state {
-		fmt.Println("*** Se ha escrito en BitMap  ***")
+		//fmt.Println("*** Se ha escrito en BitMap  ***")
 	} else {
 		fmt.Println("[!] Ha ocurrido un error al escribir en BitMap.")
 	}
