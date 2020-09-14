@@ -284,6 +284,8 @@ func execCommands(cmds []Token) {
 				fmt.Println(cmd)
 			case "logout":
 				fmt.Println("logout")
+			default:
+				fmt.Println("[!] Comando Invalido...")
 			}
 		case "comentario":
 			fmt.Println(cmds[x].value)
@@ -558,6 +560,11 @@ func getSize(size int64, unit byte) int64 {
 }
 
 func readMBR(path string) MBR {
+	_, err := os.Stat(path)
+	if err != nil {
+		fmt.Println("[!] El disco no existe...")
+		return MBR{}
+	}
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
@@ -574,7 +581,8 @@ func readMBR(path string) MBR {
 	// Se decodifica y guarda en recMbr
 	err = binary.Read(buffer, binary.BigEndian, &recMbr)
 	if err != nil {
-		log.Fatal("Fallo binay.Read", err)
+		fmt.Println("Fallo binay.Read", err)
+		return MBR{}
 	}
 
 	// Si todo sale bien se imprimirán los valores del MBR recuperado
