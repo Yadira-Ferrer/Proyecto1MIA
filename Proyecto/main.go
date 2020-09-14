@@ -1210,7 +1210,7 @@ func MountPartition(cmd CommandS) {
 				mount := Mounted{}
 				for _, p := range mbr.MbrPartitions {
 					if p.PartName == bname && p.PartStatus == 1 {
-						if p.PartType == 'p' {
+						if p.PartType == 'p' || p.PartType == 'l' {
 							mount.Part = p
 							found = true
 							break
