@@ -84,27 +84,6 @@ var sliceMP []Mounted
 var userlog UserActive
 
 func main() {
-	/* ddir := ReadDetalleDir("/home/yadira/Fase2/Disco5M.dsk", 178210)
-	aptInodo := ddir.InfoFile[0].ApInodo
-	fmt.Println("Inodo:", aptInodo)
-	inodo := ReadTInodo("/home/yadira/Fase2/Disco5M.dsk", (858655 + (92 * (aptInodo - 1))))
-	fmt.Println("Size:", inodo.SizeArchivo)
-	for _, apt := range inodo.AptBloques {
-		bloque := ReadBloqueD("/home/yadira/Fase2/Disco5M.dsk", (1392895 + (25 * (apt - 1))))
-		fmt.Println("B[", apt, "]", string(bloque.Data[:]))
-	}
-	fmt.Println("Indirecto:", inodo.AptIndirecto)
-	if inodo.AptIndirecto > 0 {
-		inodoInd := ReadTInodo("/home/yadira/Fase2/Disco5M.dsk", (858655 + (92 * (inodo.AptIndirecto - 1))))
-		fmt.Println("Size:", inodoInd.SizeArchivo)
-		for _, apt := range inodoInd.AptBloques {
-			if apt > 0 {
-				bloque := ReadBloqueD("/home/yadira/Fase2/Disco5M.dsk", (1392895 + (25 * (apt - 1))))
-				fmt.Println("B[", apt, "]", string(bloque.Data[:]))
-			}
-		}
-		fmt.Println("Indirecto:", inodo.AptIndirecto)
-	} */
 	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
@@ -118,7 +97,6 @@ func main() {
 			break
 		}
 		arrayCmd := analizar(comando)
-		//fmt.Println(arrayCmd)
 		execCommands(arrayCmd)
 	}
 	//printDiskInfo("/home/yadira/PruebaDisco/Disco1.dsk")
@@ -158,11 +136,29 @@ func execCommands(cmds []Token) {
 					path := delQuotationMark(cmds[x].value)
 					fmt.Println("\n===== SE ELIMINARÁ EL DISCO ====================================")
 					fmt.Println("Path: ", path)
-					e := os.Remove(path)
-					if e != nil {
-						fmt.Println("[!~RMDIKS] El disco no existe...")
+					_, err := os.Stat(path)
+					if err == nil {
+						var mensaje string = ""
+						entrada := bufio.NewScanner(os.Stdin)
+						for {
+							fmt.Printf("[Confirme si desea eliminar disco] (s/n): ")
+							entrada.Scan()
+							mensaje = entrada.Text()
+							if mensaje == "s" {
+								e := os.Remove(path)
+								if e != nil {
+									fmt.Println("[!] Ha ocurrido un error al eliminar disco.")
+								} else {
+									fmt.Println("*** El disco ha sido eliminado exitosamente ***")
+								}
+								break
+							} else if mensaje == "n" {
+								break
+							}
+						}
+
 					} else {
-						fmt.Println("*** El disco ha sido eliminado exitosamente ***")
+						fmt.Println("[!~RMDIKS] El disco no existe...")
 					}
 					fmt.Println("================================================================")
 				} else {
