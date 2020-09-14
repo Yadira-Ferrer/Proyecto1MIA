@@ -84,9 +84,15 @@ var sliceMP []Mounted
 var userlog UserActive
 
 func main() {
-	/* nombre := [16]byte{}
-	copy(nombre[:], "Why Dont We")
-	fmt.Println(GetString(nombre)) */
+	/* ddir := ReadDetalleDir("/home/yadira/Fase2/Disco5M.dsk", 178210)
+	aptInodo := ddir.InfoFile[0].ApInodo
+	fmt.Println("Inodo:", aptInodo)
+	inodo := ReadTInodo("/home/yadira/Fase2/Disco5M.dsk", (858655 + (92 * (aptInodo - 1))))
+	aptBloque := inodo.AptBloques[0]
+	fmt.Println("Bloque:", aptBloque)
+	fmt.Println("Size:", inodo.SizeArchivo)
+	bloque := ReadBloqueD("/home/yadira/Fase2/Disco5M.dsk", (1392895 + (25 * (aptBloque - 1))))
+	fmt.Println(string(bloque.Data[:])) */
 	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
@@ -225,7 +231,7 @@ func execCommands(cmds []Token) {
 				x = x + 1
 				cmd := CommandS{"mkdir", make([]Parameter, 0, 0)}
 				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
-					if cmds[x].name == "parametro" && cmds[x].value == "p" {
+					if cmds[x].name == "parametro" && strings.ToLower(cmds[x].value) == "p" {
 						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x].value})
 						x = x + 1
 					} else {
@@ -238,6 +244,23 @@ func execCommands(cmds []Token) {
 				}
 				x = x - 1
 				Mkdir(cmd)
+			case "mkfile":
+				x = x + 1
+				cmd := CommandS{"mkfile", make([]Parameter, 0, 0)}
+				for cmds[x].name != "comando" && cmds[x].name != "comentario" {
+					if cmds[x].name == "parametro" && strings.ToLower(cmds[x].value) == "p" {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x].value})
+						x = x + 1
+					} else {
+						cmd.Params = append(cmd.Params, Parameter{cmds[x].value, cmds[x+1].value})
+						x = x + 2
+					}
+					if x >= cmdsLen {
+						break
+					}
+				}
+				x = x - 1
+				Mkfile(cmd)
 			case "login":
 				x = x + 1
 				cmd := CommandS{"login", make([]Parameter, 0, 0)}
