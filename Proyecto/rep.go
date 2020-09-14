@@ -531,7 +531,7 @@ func GetInodeDot(numInode int64, pathdsk string, sb SuperBoot) string {
 	}
 	// Si exite Inodo Indirecto
 	if inodo.AptIndirecto > 0 {
-		dot += "inode" + strconv.FormatInt(numInode, 10) + ":f5 -> inodo" + strconv.FormatInt(inodo.AptIndirecto, 10) + "\n"
+		dot += "inode" + strconv.FormatInt(numInode, 10) + ":f5 -> inode" + strconv.FormatInt(inodo.AptIndirecto, 10) + "\n"
 		dotInd := GetInodeDot(inodo.AptIndirecto, pathdsk, sb)
 		return dot + dotInd
 	}
