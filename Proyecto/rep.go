@@ -407,6 +407,137 @@ func DirsReport(path string, pm Mounted) {
 	}
 }
 
+//--- REPORTE DE ARBOL DE ARCHIVO -------------------------------------------------------
+
+// TreeFileReport : reporte de arbol de archivo
+func TreeFileReport(path string, pm Mounted, ruta string) {
+	p, n, e := SeparatePath(path)
+	// Obtener Fecha y Hora actual
+	ct := getCurrentTime()
+	// Recuperar el SuperBoot
+	sb := ReadSuperBoot(pm.Path, pm.Part.PartStart)
+	// Obtener el directorio raíz
+	rootDir := ReadAVD(pm.Path, sb.AptArbolDirectorio)
+	// Generar contenido Dot
+	//codir := int64(1)
+	cDot := "digraph {\nrankdir=LR;\nedge[arrowhead=vee]\n"
+	cDot += "labelloc=\"t\";\nlabel=<REPORTE TREE FILE<BR /><FONT POINT-SIZE=\"10\">Generado:" + GetDateAsString(ct) + "</FONT><BR /><BR />>;\n"
+	cDot += "d1 [label=<" + GetString(rootDir.NombreDirectorio) + "<BR /><FONT POINT-SIZE=\"6\">" + GetDateAsString(rootDir.FechaCreacion) + "</FONT>> shape=folder style=filled fillcolor=darkgoldenrod1 fontsize=11];\n"
+	// File Path, File Name, File Extension
+	pf, nf, ef := SeparatePath(ruta)
+	filename := nf + "." + ef
+	pf = pf[0:(len(pf) - 1)]
+	if len(pf) == 0 { //Directorio Raiz
+		dotDDir, inode := DetDirDot(rootDir.AptDetalleDirectorio, pm.Path, filename, sb)
+		if inode != -1 {
+			cDot += dotDDir
+			cDot += "d1 -> ddir:f0\n"
+			cDot += GetInodeDot(inode, pm.Path, sb)
+			cDot += "\nddir:f1 -> inode" + strconv.FormatInt(inode, 10) + ":f0\n"
+		} else {
+			fmt.Println("[!] Ruta de archivo no encontrada...")
+			return
+		}
+	} else {
+		auxDir := rootDir
+		posAuxDir := sb.AptArbolDirectorio
+		sliceDirs := GetDirsNames(pf[1:len(pf)])
+		c := 1
+		for _, name := range sliceDirs {
+			// Obtengo el directorio y su posicion...
+			cDot += "d" + strconv.Itoa(c) + " -> d" + strconv.Itoa(c+1) + "\n"
+			posAuxDir, auxDir = GetSubDir(name, pm.Path, sb, auxDir, posAuxDir)
+			cDot += "d" + strconv.Itoa(c+1) + " [label=<" + GetString(auxDir.NombreDirectorio) + "<BR /><FONT POINT-SIZE=\"6\">" + GetDateAsString(auxDir.FechaCreacion) + "</FONT>> shape=folder style=filled fillcolor=darkgoldenrod1 fontsize=11];\n"
+			c++
+		}
+		dotDDir, inode := DetDirDot(auxDir.AptDetalleDirectorio, pm.Path, filename, sb)
+		if inode != -1 {
+			cDot += dotDDir
+			cDot += "d" + strconv.Itoa(c) + " -> ddir:f0\n"
+			cDot += GetInodeDot(inode, pm.Path, sb)
+			cDot += "\nddir:f1 -> inode" + strconv.FormatInt(inode, 10) + ":f0\n"
+		} else {
+			fmt.Println("[!] Ruta de archivo no encontrada...")
+			return
+		}
+	}
+	cDot += "}"
+	// Se escribirá el archivo dot
+	state := WriteFile(p, n, "dot", cDot)
+	if state {
+		fmt.Println("> DOT escrito exitosamente...")
+		outType := "-T" + e
+		pathDot := p + n + ".dot"
+		pathRep := path
+		DotGenerator(outType, pathDot, pathRep)
+	}
+}
+
+// DetDirDot : genera el codigo Dot del detalle directorio
+func DetDirDot(numDDir int64, pathdsk string, namefile string, sb SuperBoot) (string, int64) {
+	position := sb.AptDetalleDirectorio + (sb.TamStrcDetalleDirectorio * (numDDir - 1))
+	ddir := ReadDetalleDir(pathdsk, position)
+	var bname [16]byte
+	copy(bname[:], namefile)
+	for _, infile := range ddir.InfoFile {
+		if infile != (InfoArchivo{}) {
+			if bname == infile.FileName {
+				dot := "node [shape=plaintext]\nddir [label=<\n<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n"
+				dot += "<TR>\n<TD PORT=\"f0\" colspan=\"2\" BGCOLOR=\"#66abff\">" + strconv.FormatInt(numDDir, 10) + "</TD>\n</TR>\n"
+				dot += "\n<TR><TD BGCOLOR=\"#5181db\">" + namefile + "</TD>\n"
+				dot += "<TD PORT=\"f1\">" + strconv.FormatInt(infile.ApInodo, 10) + "</TD>\n</TR>\n</TABLE>> fontsize=8];\n"
+				return dot, infile.ApInodo
+			}
+		}
+	}
+	// Verificar Apuntador Indirecto
+	if ddir.ApDetalleDirectorio > 0 {
+		return DetDirDot(ddir.ApDetalleDirectorio, pathdsk, namefile, sb)
+	}
+	return "", -1
+}
+
+// GetInodeDot : Obtener el codigo Dot de los inodos
+func GetInodeDot(numInode int64, pathdsk string, sb SuperBoot) string {
+	posInodo := sb.AptTablaInodo + (sb.TamStrcInodo * (numInode - 1))
+	inodo := ReadTInodo(pathdsk, posInodo)
+	dot := "inode" + strconv.FormatInt(numInode, 10) + "[shape=plaintext label=<\n"
+	dot += "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n"
+	dot += "<TR><TD BGCOLOR=\"#5fb393\" PORT=\"f0\">Inodo</TD><TD BGCOLOR=\"#5fb393\">" + strconv.FormatInt(numInode, 10) + "</TD></TR>\n"
+	dot += "<TR><TD BGCOLOR=\"#61cfa5\">Tamaño</TD><TD>" + strconv.FormatInt(inodo.SizeArchivo, 10) + "</TD></TR>\n"
+	dot += "<TR><TD BGCOLOR=\"#61cfa5\">Bloques</TD><TD>" + strconv.FormatInt(inodo.CantBloquesAsignados, 10) + "</TD></TR>\n"
+	for i, apt := range inodo.AptBloques {
+		saux := ""
+		if apt > 0 {
+			saux = strconv.FormatInt(apt, 10)
+		}
+		dot += "<TR><TD BGCOLOR=\"#61cfa5\">Apt" + strconv.Itoa(int(i+1)) + "</TD><TD PORT=\"f" + strconv.Itoa(int(i+1)) + "\">" + saux + "</TD></TR>\n"
+	}
+	saux := ""
+	if inodo.AptIndirecto > 0 {
+		saux = strconv.FormatInt(inodo.AptIndirecto, 10)
+	}
+	dot += "<TR><TD BGCOLOR=\"#5fb393\">Indirecto</TD><TD PORT=\"f5\">" + saux + "</TD></TR>"
+	dot += "</TABLE>> fontsize=8];\n"
+	// Crear los bloques de datos
+	for i, apt := range inodo.AptBloques {
+		if apt > 0 {
+			posBloque := sb.AptBloques + (sb.TamStrcBloque * (apt - 1))
+			bloque := ReadBloqueD(pathdsk, posBloque)
+			data := GetDataString(bloque.Data)
+			dot += "bloque" + strconv.FormatInt(apt, 10) + "[shape=\"note\" label=\"" + data + "\" fontsize=8]\n"
+			dot += "inode" + strconv.FormatInt(numInode, 10) + ":f" + strconv.Itoa(int(i+1)) + " -> bloque" + strconv.FormatInt(apt, 10) + "\n"
+		}
+	}
+	// Si exite Inodo Indirecto
+	if inodo.AptIndirecto > 0 {
+		dot += "inode" + strconv.FormatInt(numInode, 10) + ":f5 -> inodo" + strconv.FormatInt(inodo.AptIndirecto, 10) + "\n"
+		dotInd := GetInodeDot(inodo.AptIndirecto, pathdsk, sb)
+		return dot + dotInd
+	}
+	return dot
+}
+
 // CreateDirDot : crea el codigo dot del directorio
 func CreateDirDot(dir ArbolVirtualDir, padre int64, act int64, path string, sizeAVD int64, iniAVD int64) string {
 	cDot := ""
@@ -444,4 +575,17 @@ func CreateDirDot(dir ArbolVirtualDir, padre int64, act int64, path string, size
 		}
 	}
 	return cDot
+}
+
+//GetDataString retorna una cadena
+func GetDataString(b [25]byte) string {
+	var str string
+	for i := int64(0); i < 25; i++ {
+		if b[i] >= 32 && b[i] <= 126 {
+			str += string(b[i])
+			continue
+		}
+		break
+	}
+	return str
 }

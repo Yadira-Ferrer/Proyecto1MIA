@@ -636,7 +636,7 @@ func Mkfile(cmd CommandS) {
 						dirsOk = false
 					} else {
 						sliceDirs := GetDirsNames(p[1:len(p)])
-						fmt.Println(sliceDirs)
+						//fmt.Println(sliceDirs)
 						// Busco el directorio
 						for _, name := range sliceDirs {
 							// Obtengo el directorio y su posicion...
@@ -647,7 +647,7 @@ func Mkfile(cmd CommandS) {
 			} else { // ACÁ EL DIRECTORIO YA DEBE EXISTIR
 				if len(p) > 0 { // Directorio Raiz
 					sliceDirs := GetDirsNames(p[1:len(p)])
-					fmt.Println(sliceDirs)
+					//fmt.Println(sliceDirs)
 					// Busco el directorio
 					for _, name := range sliceDirs {
 						// Obtengo el directorio y su posicion...
@@ -909,7 +909,12 @@ func CreateDataBlock(cont string, cm Mounted, sb SuperBoot) []int64 {
 // CreateInode : crea los Inodos necesarios
 func CreateInode(cm Mounted, sb SuperBoot, posBloques []int64, fileSize int64) []int64 {
 	// Obtener cantidad de Inodos
-	cantInodos := int64((len(posBloques) / 4) + 1)
+	cantInodos := int64(0)
+	if len(posBloques)%4 == 0 {
+		cantInodos = int64((len(posBloques) / 4))
+	} else {
+		cantInodos = int64((len(posBloques) / 4) + 1)
+	}
 	// Obtener posicion de Inodos
 	posInode := make([]int64, 0)
 	for i := int64(0); i < cantInodos; i++ {
@@ -1167,7 +1172,7 @@ func ReadBloqueD(path string, position int64) BloqueDeDatos {
 	if err != nil {
 		log.Fatal("[!] Fallo la lectura de Bloque de Datos", err)
 	} else {
-		fmt.Println("[ Bloque de datos leído exitosamente ]")
+		//fmt.Println("[ Bloque de datos leído exitosamente ]")
 	}
 	return rec
 }

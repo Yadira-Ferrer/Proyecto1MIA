@@ -88,11 +88,23 @@ func main() {
 	aptInodo := ddir.InfoFile[0].ApInodo
 	fmt.Println("Inodo:", aptInodo)
 	inodo := ReadTInodo("/home/yadira/Fase2/Disco5M.dsk", (858655 + (92 * (aptInodo - 1))))
-	aptBloque := inodo.AptBloques[0]
-	fmt.Println("Bloque:", aptBloque)
 	fmt.Println("Size:", inodo.SizeArchivo)
-	bloque := ReadBloqueD("/home/yadira/Fase2/Disco5M.dsk", (1392895 + (25 * (aptBloque - 1))))
-	fmt.Println(string(bloque.Data[:])) */
+	for _, apt := range inodo.AptBloques {
+		bloque := ReadBloqueD("/home/yadira/Fase2/Disco5M.dsk", (1392895 + (25 * (apt - 1))))
+		fmt.Println("B[", apt, "]", string(bloque.Data[:]))
+	}
+	fmt.Println("Indirecto:", inodo.AptIndirecto)
+	if inodo.AptIndirecto > 0 {
+		inodoInd := ReadTInodo("/home/yadira/Fase2/Disco5M.dsk", (858655 + (92 * (inodo.AptIndirecto - 1))))
+		fmt.Println("Size:", inodoInd.SizeArchivo)
+		for _, apt := range inodoInd.AptBloques {
+			if apt > 0 {
+				bloque := ReadBloqueD("/home/yadira/Fase2/Disco5M.dsk", (1392895 + (25 * (apt - 1))))
+				fmt.Println("B[", apt, "]", string(bloque.Data[:]))
+			}
+		}
+		fmt.Println("Indirecto:", inodo.AptIndirecto)
+	} */
 	var comando string = ""
 	entrada := bufio.NewScanner(os.Stdin)
 
@@ -1316,7 +1328,7 @@ func MakeRep(cmd CommandS) {
 	id := ""
 	path := ""
 	name := ""
-	//ruta := ""
+	ruta := ""
 	cm := Mounted{}
 	for _, param := range cmd.Params {
 		switch strings.ToLower(param.Name) {
@@ -1327,7 +1339,12 @@ func MakeRep(cmd CommandS) {
 		case "name": // nombre del reporte a generar
 			name = delQuotationMark(param.Value)
 			name = strings.ToLower(name)
-		case "ruta": // ruta del archivo o carpeta del disco
+		case "ruta":
+			if strings.Contains(param.Value, "\"") {
+				ruta = strings.Replace(param.Value, "\"", "", -1)
+				continue
+			}
+			ruta = param.Value
 			//ruta = delQuotationMark(param.Value)
 		default:
 			fmt.Println("[!] Parametro para el comando 'rep' invalido...")
@@ -1337,6 +1354,7 @@ func MakeRep(cmd CommandS) {
 	fmt.Println("Reporte:", name)
 	fmt.Println("Ubicacion:", path)
 	fmt.Println("Id Particion:", id)
+	fmt.Println("Ruta:", ruta)
 	// Obtener la particion
 	flgfound := false
 	for _, mp := range sliceMP {
@@ -1367,6 +1385,8 @@ func MakeRep(cmd CommandS) {
 			BitMapReport(path, cm, 4)
 		case "directorio":
 			DirsReport(path, cm)
+		case "tree_file":
+			TreeFileReport(path, cm, ruta)
 		default:
 			fmt.Println("[!] El nombre del reporte no es valido (", name, ")")
 		}
