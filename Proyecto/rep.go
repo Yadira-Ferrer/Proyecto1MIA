@@ -68,10 +68,10 @@ func DiskReport(path string, mbr MBR, dskpath string) {
 				position := p.PartStart
 				for true {
 					ebr := readEBR(dskpath, position)
-					if ebr.PartStatus == 0 {
+					if ebr.PartNext < 1 {
 						break
 					} else {
-						cdot += "<TD>EBR</TD>\n<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Logica<br/>" + GetString(ebr.PartName) + "<br/>" + strconv.FormatInt(p.PartSize, 10) + " Bytes</TD></TR>\n</TABLE>\n</TD>\n"
+						cdot += "<TD>EBR</TD>\n<TD>\n<TABLE BORDER=\"0\">\n<TR><TD>Logica<br/>" + GetString(ebr.PartName) + "<br/>" + strconv.FormatInt(ebr.PartSize, 10) + " Bytes</TD></TR>\n</TABLE>\n</TD>\n"
 						position = ebr.PartNext
 					}
 				}

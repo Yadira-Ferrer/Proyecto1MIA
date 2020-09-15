@@ -289,6 +289,8 @@ func execCommands(cmds []Token) {
 			}
 		case "comentario":
 			fmt.Println(cmds[x].value)
+		default:
+			fmt.Println("[!] No se ha reconocido el token...")
 		}
 	}
 }
@@ -1120,6 +1122,38 @@ func fixDiskDelete(path string, name string, typeDel byte) {
 			flgfound = true
 			position = int64(i)
 			break
+		} else if p.PartType == 'e' && p.PartStatus == 1 {
+			position = p.PartStart
+			anterior := p.PartStart
+			for true {
+				ebr := readEBR(path, position)
+				if ebr.PartStatus == 1 && ebr.PartName == bname {
+					if position == anterior {
+						ebr.PartStatus = 0
+						writeEBR(path, ebr, position)
+					} else {
+						ebrAnt := readEBR(path, anterior)
+						ebrAnt.PartNext = ebr.PartNext
+						writeEBR(path, ebrAnt, anterior)
+						if typeDel == 'a' {
+							ebr.PartStatus = 0
+							ebr.PartNext = -1
+							writeEBR(path, ebr, position)
+						} else {
+							size := int64(binary.Size(ebr))
+							writeByteArray(path, position, size)
+						}
+						fmt.Println("[!] Partición", name, "eliminada exitosamente.")
+						return
+					}
+				} else if ebr.PartNext < 1 {
+					break
+				} else {
+					anterior = position
+					position = ebr.PartNext
+				}
+			}
+
 		}
 	}
 	// Fast Delete
@@ -1210,13 +1244,34 @@ func MountPartition(cmd CommandS) {
 				mount := Mounted{}
 				for _, p := range mbr.MbrPartitions {
 					if p.PartName == bname && p.PartStatus == 1 {
-						if p.PartType == 'p' || p.PartType == 'l' {
+						if p.PartType == 'p' {
 							mount.Part = p
 							found = true
 							break
 						} else {
 							flgext = true
 							break
+						}
+					} else if p.PartType == 'e' {
+						position := p.PartStart
+						for true {
+							ebr := readEBR(path, position)
+							if ebr.PartName == bname && p.PartStatus == 1 {
+								newPart := Partition{}
+								newPart.PartName = ebr.PartName
+								newPart.PartFit = ebr.PartFit
+								newPart.PartSize = ebr.PartSize
+								newPart.PartStatus = ebr.PartStatus
+								newPart.PartType = 'l'
+								newPart.PartStart = ebr.PartStart
+								mount.Part = newPart
+								found = true
+								break
+							} else if ebr.PartNext < 1 {
+								break
+							} else {
+								position = ebr.PartNext
+							}
 						}
 					}
 				}
@@ -1246,7 +1301,7 @@ func MountPartition(cmd CommandS) {
 					}
 				} else {
 					if flgext {
-						fmt.Println("[!] Ha intentado montar una partición que no es primaria...")
+						fmt.Println("[!] Ha intentado montar una partición que no es Extendida...")
 					} else {
 						fmt.Println("[!] No se ha encontrado la partición '", name, "'...")
 					}
@@ -1313,10 +1368,26 @@ func UnmountPartition(cmd CommandS) {
 				if bname == p.PartName {
 					mbr.MbrPartitions[i] = pmounted.Part
 					writeMBR(pmounted.Path, mbr)
-					sliceMP = RemoveMountedPartition(sliceMP, index)
+					if index == 0 && len(sliceMP) > 1 {
+						sliceMP = sliceMP[1:len(sliceMP)]
+					} else if index == 0 && len(sliceMP) == 0 {
+						sliceMP = make([]Mounted, 0)
+					} else {
+						sliceMP = RemoveMountedPartition(sliceMP, index)
+					}
 					fmt.Println("*** Particion", idp, " Desmontada ***")
 					break
 				}
+			}
+			if pmounted.Part.PartType == 'l' {
+				if index == 0 && len(sliceMP) > 1 {
+					sliceMP = sliceMP[1:len(sliceMP)]
+				} else if index == 0 && len(sliceMP) == 0 {
+					sliceMP = make([]Mounted, 0)
+				} else {
+					sliceMP = RemoveMountedPartition(sliceMP, index)
+				}
+				fmt.Println("*** Particion", idp, " Desmontada ***")
 			}
 		} else {
 			fmt.Println("[!] No se ha montado la particion con el id", idp, "...")

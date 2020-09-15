@@ -1,0 +1,81 @@
+#exec -path->"/home/entradas/archivo2.mia"
+
+Mkdisk -Size->2 -unit->M -path->/home/archivos/fase2/ -name->Disco1.dsk
+fdisk -Size->1 -path->/home/archivos/fase2/Disco1.dsk -unit->M -name->Particion1
+
+Pause
+#id->vda1
+mount -path->/home/archivos/fase2/Disco1.dsk -name->Particion1 
+
+Pause
+
+mkfs -id->vda1
+
+Mkdir -P -id->vda1 -path->/bin/ 
+Mkdir -P -id->vda1 -path->/usr/usuario
+Mkdir -P -id->vda1 -path->/hola
+Mkdir -P -id->vda1 -path->/etc/
+Mkdir -P -id->vda1 -path->/boot/
+Mkdir -P -id->vda1 -path->/git/
+Mkdir -P -id->vda1 -path->/library/
+Mkdir -P -id->vda1 -path->/copia/
+Mkdir -P -id->vda1 -path->/home/user/docs
+Mkdir -P -id->vda1 -path->/home/user/docs/usac
+Mkdir -P -id->vda1 -path->/home/etc/que/onda/uno
+Mkdir -P -id->vda1 -path->/home/hola
+Mkdir -P -id->vda1 -path->/home/file
+Mkdir -P -id->vda1 -path->/home/fuente
+Mkdir -P -id->vda1 -path->/home/hola1
+Mkdir -P -id->vda1 -path->/home/file1
+Mkdir -P -id->vda1 -path->/home/fuente1
+Mkdir -P -id->vda1 -path->/home/hola2
+Mkdir -P -id->vda1 -path->/home/file2
+Mkdir -P -id->vda1 -path->/home/fuente2
+mkfile -P -id->vda1 -path->/home/etc/que/onda/uno/dos.txt -cont->"f dos" -size->500
+mkfile -id->vda1 -path->/home/etc/que/onda/uno/dos2.txt -size->1000
+mkfile -P -id->vda1 -path->/home/user/docs/hola.txt" -cont->"Hola file" -size->200
+mkfile -id->vda1 -path->/home/user/docs/otro.txt" -cont->"Hola file" -size->15
+mkfile -id->vda1 -path->/home/user/docs/hola2.txt" -cont->"Hola file" -size->15
+mkfile -id->vda1 -path->/home/user/docs/hola3.txt" -cont->"Hola file" -size->15
+mkfile -P -id->vda1 -path->/home/user/docs/hola4.txt" -cont->"Hola file" -size->15
+mkfile -id->vda1 -path->/home/user/docs/hola5.txt" -cont->"Hola file" -size->15
+mkfile -id->vda1 -path->/home/user/docs/hola6.txt" -cont->"Hola file" -size->300
+mkfile -id->vda1 -path->/home/user/docs/hola7.txt" -cont->"Hola file" -size->15
+mkfile -P -id->vda1 -path->/home/mis documentos/archivo 1.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo2.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->200
+mkfile -id->vda1 -path->/home/mis documentos/archivo3.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo4.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo5.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo6.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->550
+mkfile -id->vda1 -path->/home/mis documentos/archivo7.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo8.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo9.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo10.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/mis documentos/archivo11.txt -cont->"Contenido x, estoy probando si aguanta varios bloques." -size->60
+mkfile -id->vda1 -path->/home/Indirecto.txt -cont->"Este es un archivo donde se esta probando si soporta bastante texto y como se maneja entre bloques, deberiamos tener varios bloques." -size->340
+rep -id->vda1 -Path->/home/archivos/fase2/bmAVD.txt -nombre->bm_arbdir
+rep -id->vda1 -Path->/home/archivos/fase2/bmDD.txt -nombre->bm_detdir
+rep -id->vda1 -Path->/home/archivos/fase2/bmInodos.txt -nombre->bm_inode
+rep -id->vda1 -Path->/home/archivos/fase2/bmBloques.txt -nombre->bm_block
+rep -id->vda1 -Path->/home/archivos/fase2/SB.png -nombre->sb
+rep -id->vda1 -Path->/home/archivos/fase2/Directorio.pdf -nombre->directorio
+rep -id->vda1 -Path->/home/archivos/fase2/tree_file.pdf -nombre->tree_file -ruta->"/home/mis documentos/archivo 1.txt"
+rep -id->vda1 -Path->/home/archivos/fase2/tree_complete.pdf -nombre->tree_complete
+rep -id->vda1 -Path->/home/archivos/fase2/tree_directorio.pdf -nombre->tree_directorio -ruta->"/home/mis documentos/"
+rep -id->vda1 -Path->/home/archivos/fase2/bitacora.pdf -nombre->bitacora
+
+loss -id->vda1
+rep -id->vda1 -Path->/home/archivos/fase2/bmAVDloss.txt -nombre->bm_arbdir
+rep -id->vda1 -Path->/home/archivos/fase2/bmDDloss.txt -nombre->bm_detdir
+rep -id->vda1 -Path->/home/archivos/fase2/bmInodosloss.txt -nombre->bm_inode
+rep -id->vda1 -Path->/home/archivos/fase2/bmBloquesloss.txt -nombre->bm_block
+rep -id->vda1 -Path->/home/archivos/fase2/SBloss.png -nombre->sb
+rep -id->vda1 -Path->/home/archivos/fase2/tree_completeLoss.pdf -nombre->tree_complete
+
+recovery -id->vda1
+rep -id->vda1 -Path->/home/archivos/fase2/bmAVDreco.txt -nombre->bm_arbdir
+rep -id->vda1 -Path->/home/archivos/fase2/bmDDreco.txt -nombre->bm_detdir
+rep -id->vda1 -Path->/home/archivos/fase2/bmInodosreco.txt -nombre->bm_inode
+rep -id->vda1 -Path->/home/archivos/fase2/bmBloquesreco.txt -nombre->bm_block
+rep -id->vda1 -Path->/home/archivos/fase2/SBreco.png -nombre->sb
+rep -id->vda1 -Path->/home/archivos/fase2/tree_completeRecovery.pdf -nombre->tree_complete

@@ -1,0 +1,117 @@
+#exec -path->"/home/entradas/archivo3.mia"
+
+Mkdisk -Size->2 -unit->M -path->/home/archivos/fase3/ -name->Disco1.dsk
+fdisk -Size->1 -path->/home/archivos/fase3/Disco1.dsk -unit->M -name->Particion1
+
+Pause
+
+#id->vda1
+mount -path->/home/archivos/fase3/Disco1.dsk -name->Particion1 
+
+Pause
+
+mkfs -id->vda1
+
+Mkdir -P -id->vda1 -path->/bin/
+Mkdir -P -id->vda1 -path->/usr/usuario"
+Mkdir -P -id->vda1 -path->/hola
+Mkdir -P -id->vda1 -path->/etc/
+Mkdir -P -id->vda1 -path->/boot/
+mkfile -P -id->vda1 -path->/home/etc/que/onda/uno/dos.txt -cont->"f dos" -size->100
+mkfile -id->vda1 -path->/home/etc/que/onda/uno/dos2.txt -size->200
+mkfile -P -id->vda1 -path->/home/user/docs/hola.txt -cont->"Hola file" -size->200
+mkfile -id->vda1 -path->/home/user/docs/otro.txt -cont->"Hola file" -size->15
+Mkdir -P -id->vda1 -path->/carpetaRename/ 
+mkfile -P -id->vda1 -path->/etc/fileRename.txt -cont->"f dos" -size->100 
+mkfile -P -id->vda1 -path->/etc/copia.txt -cont->"f dos" -size->100 
+mkfile -p -id->vda1 -path->/remove/remover.txt -cont->"Texto a editar" -size->50
+mkfile -p -id->vda1 -path->/editable/edit.txt -cont->"Texto a editar" -size->50
+
+rep -id->vda1 -Path->/home/archivos/fase3/tree_complete.pdf -nombre->tree_complete
+
+pause
+
+#login
+login -id->vda1 -usr->root -pwd->#carne
+
+#rename
+ren -path->/carpetaRename/ -name->nuevoNombre -id->vda1
+
+#rename
+ren -path->/etc/fileRename.txt -name->nuevoArchivo.txt -id->vda1
+
+#copy
+cp -id->vda1 -path->/etc/copia.txt -dest->/bin
+
+#cat
+cat -file1->/home/user/docs/otro.txt -id->vda1
+
+pause
+
+#remove folder
+rm -id->vda1 -path->/boot/
+
+#remove file
+rm -id->vda1 -path->/remove/remover.txt
+
+#edit file
+edit -id->vda1 -path->/editable/edit.txt -cont->"Texto editado"
+
+#move folder
+mv -id->vda1 -path->/home -dest->/hola
+
+#find
+find -id->vda1 -path->/etc -nombre->*.*
+
+pause
+
+rep -id->vda1 -Path->/home/archivos/fase3/tree_complete2.pdf -nombre->tree_complete
+
+pause
+
+#make group
+
+mkgrp -id->vda1 -name->grupo2
+mkgrp -id->vda1 -name->grupo3
+mkgrp -id->vda1 -name->grupo4
+
+pause
+
+#make user
+
+mkusr -id->vda1 -usr->user3 -pwd->151 -grp->grupo3
+mkusr -id->vda1 -usr->user4 -pwd->151 -grp->grupo4
+mkusr -id->vda1 -usr->user5 -pwd->151 -grp->grupo4
+mkusr -id->vda1 -usr->user6 -pwd->151 -grp->grupo4
+mkusr -id->vda1 -usr->user31 -pwd->151 -grp->grupo3
+mkusr -id->vda1 -usr->user32 -pwd->151 -grp->grupo3
+mkusr -id->vda1 -usr->user33 -pwd->151 -grp->grupo3
+mkusr -id->vda1 -usr->user34 -pwd->151 -grp->grupo444
+mkusr -id->vda1 -usr->user35 -pwd->151 -grp->grupo444
+
+#change group
+chgrp -id->vda1 -usr->user31 -grp->grupo4
+
+#chmod
+chmod -id->vda1 -path->/home -R -ugo->755
+
+#chown usuario sobre sus carpetas
+chown -id->vda1 -path->/home -R -usr->user3
+pause
+#remove group
+rmgrp -id->vda1 -name->grupo3
+
+#remove user
+rmusr -id->vda1 -usr->user5
+
+#logout
+logout
+
+#login con un usuario
+login -id->vda1 -usr->user31 -pwd->151
+
+#cat
+cat -file1->/users.txt -id->vda1
+
+rep -id->vda1 -Path->/home/archivos/fase3/tree_complete3.pdf -nombre->tree_complete
+

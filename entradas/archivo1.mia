@@ -1,0 +1,108 @@
+# Bienvenidos a la calificacion, archivo equivalente a la fase 1
+
+# exec -path->/home/entradas/archivo1.mia
+
+mkdisk -path->/home/archivos/fase1/ -size->30 -unit->m -name->D1.dsk
+mkdisk -path->/home/archivos/fase1/ -size->40 -unit->m \*
+-name->D2.dsk
+mkdisk -path->/home/archivos/fase1/ -size->50 -unit->m  -name->D3.dsk
+mkdisk -path->"/home/archivos/fase1/fase 1 espacio/" -size->50 -unit->m -name->D4.dsk
+
+# eliminando disco 3
+rmdisk -path->/home/archivos/fase1/D3.dsk
+# Muestra error, no existe disco
+rmdisk -path->/home/archivos/fase1/D4.dsk
+
+# Mensaje de error por comando no especificado:
+crearDisco -path->/home/archivos/fase1/ -size->30 -unit->m -name->D1.dsk
+
+pause
+# ----------------------------------------------
+# Primarias y extendidas
+# ----------------------------------------------
+# P1 = 10MB, P2 = 5MB, EXT = 10MB, P4 = 3MB
+
+fdisk -sizE->10 -UniT->M -path->/home/archivos/fase1/D1.dsk -type->P -fit->FF -name->P1
+fdisk -path->/home/archivos/fase1/D1.dsk -sizE->5 -fit->BF -name->P2 -unit->M
+Fdisk -path->/home/archivos/fase1/D1.dsk -type->E -name->EXT -sizE->10 -unit->M
+fdisk -unit->M -path->/home/archivos/fase1/D1.dsk -sizE->3 -name->P4
+
+# --------------------------------
+# Logicas
+# --------------------------------
+fdisk -type->L -sizE->800 -Unit->K -path->/home/archivos/fase1/D1.dsk -name->LOG1
+fdisK -name->LOG2 -sizE->500 -path->/home/archivos/fase1/D1.dsk -type->L
+fdisK -name->LOG3 -sizE->1500 -path->/home/archivos/fase1/D1.dsk -type->L
+fdisK -name->LOG4 -sizE->1500 -path->/home/archivos/fase1/D1.dsk -type->L
+fdisK -name->LOG5 -sizE->1000 -path->/home/archivos/fase1/D1.dsk -type->L
+fdisK -name->LOG6 -sizE->700 -path->/home/archivos/fase1/D1.dsk -type->L
+fdisK -name->LOG7 -sizE->600 -path->/home/archivos/fase1/D1.dsk -type->L
+fdisK -name->LOG8 -sizE->1000 -path->/home/archivos/fase1/D1.dsk -type->L
+
+# Debe mostrar error, sobrepasa el size de la particion extendida
+fdisK -name->LOG9 -sizE->5000 -path->/home/archivos/fase1/D1.dsk -type->L
+
+# Eliminar Logica:
+fdisk -path->/home/archivos/fase1/D2.dsk -size->1 -name->LOG5 -delete->full
+
+
+pause
+
+# DISCO 2, DELETE Y ADD.
+
+fdisk -sizE->10 -UniT->M -path->/home/archivos/fase1/D2.dsk -type->P -fit->FF -name->PRI1
+fdisk -path->/home/archivos/fase1/D2.dsk -sizE->5000 -fit->BF -name->PRI2
+Fdisk -path->/home/archivos/fase1/D2.dsk -type->E -name->EXT -sizE->10000
+fdisk -unit->M -path->/home/archivos/fase1/D2.dsk -sizE->10 -name->PRI3
+fdisk -type->L -sizE->800 -Unit->K -path->/home/archivos/fase1/D2.dsk -name->L1
+
+# Restriccion de teoria de particiones, debe mostrar error
+fdisk -unit->M -path->/home/archivos/fase1/D2.dsk -sizE->1 -name->PRI5
+
+# ELIMINAR PRI2 y EXT
+fdisk -path->/home/archivos/fase1/D2.dsk -size->1 -name->PRI2 -delete->full
+fdisk -path->/home/archivos/fase1/D2.dsk -size->1 -name->EXT -delete->fast
+
+# ADD 1MB positivo en PRI1
+fdisk -add->1000 -unit->K -path->/home/archivos/fase1/D2.dsk \*
+-name->PRI1
+
+# ADD 1MB negativo en PRI3
+fdisk -add->-1000 -unit->K -path->/home/archivos/fase1/D2.dsk \*
+-name->PRI3
+
+
+pause
+# Debería generar los ids: vda1, vda2, vda3, vda4, vdb1, vdb2
+# vda para el D2.dsk y vdb para d1.dsk
+
+mouNt -NamE->P1 \*
+-path->/home/archivos/fase1/D1.dsk
+moUnt -PAth->/home/archivos/fase1/D1.dsk -name->P2
+moUnt -PAth->/home/archivos/fase1/D1.dsk -name->P4
+
+# Mount Logicas
+moUnt -PAth->/home/archivos/fase1/D1.dsk -name->LOG1
+
+mount
+
+mouNt -path->/home/archivos/fase1/D2.dsk -NamE->PRI1
+moUnt -name->PRI2 -PAth->/home/archivos/fase1/D2.dsk
+
+pause
+
+unmount -id1->vda2
+unmount -id1->vda3 -id2->vdb2 
+# Error en montaje
+unmount -id1->vdx1
+# muestra vda1, vda4, vdb1
+mount 
+
+pause 
+
+# REPORTES
+rep -id->vda1 -path->/home/achivos/fase1/reportes/mbr1.png -nombre->mbr
+rep -id->vdb1 -path->/home/achivos/fase1/reportes/mbr2.png -nombre->mbr
+rep -id->vda1 -path->/home/achivos/fase1/reportes/disk1.png -nombre->disk
+rep -id->vdb1 -path->/home/achivos/fase1/reportes/disk2.png -nombre->disk
+
